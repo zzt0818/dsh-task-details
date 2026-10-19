@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Task Details",
+    "description": "Shows a \"View task details\" button under every finished turn; it opens a resizable right-sidebar panel with that task's input files, intermediate artifacts, output files, tools and skills used, and model usage."
+  }
+}

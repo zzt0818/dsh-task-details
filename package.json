@@ -1,0 +1,75 @@
+{
+  "name": "dsh-task-details",
+  "version": "1.0.0",
+  "description": "Task details sidebar for DeepSeek Harness: a 'View task details' button under every finished turn opens a resizable right-sidebar panel listing the task's input files, intermediate artifacts, output files, tools and skills used, languages, and model usage.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "analyzer.js",
+    "model.js",
+    "details.js",
+    "client-entry.js",
+    "copy.js",
+    "styles.js",
+    "preference.js",
+    "client.js",
+    "build.mjs",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "icon": "./icon.svg",
+  "license": "MIT",
+  "author": "zzt0818",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zzt0818/dsh-task-details.git"
+  },
+  "homepage": "https://github.com/zzt0818/dsh-task-details#readme",
+  "bugs": {
+    "url": "https://github.com/zzt0818/dsh-task-details/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "task-details",
+    "sidebar",
+    "usage",
+    "tokens",
+    "ui"
+  ],
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node test/run.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "host": {
+      "platform": "any"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  }
+}

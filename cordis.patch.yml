@@ -1,0 +1,7 @@
+# dsh-client-ui-task-details bundle patch: inserts the Host half of the plugin
+# into the profile roster. The Host half serves the task-detail aggregate route
+# (file metadata, memory files, model usage) that the browser half renders.
+# The browser half loads from package.json `dsh.client` (exports "./client").
+- insert:
+    - id: ui-task-details
+      name: 'dsh-task-details'
