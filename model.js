@@ -139,6 +139,22 @@ export function formatTime(time) {
 }
 
 /**
+ * Format an estimated cost in the provider's currency unit.
+ *
+ * The journal does not say which currency a rate belongs to, so the figure is
+ * shown without a currency symbol: a guessed one could be wrong in either
+ * direction, and the plain number is still comparable across tasks.
+ *
+ * @param {number | undefined} value cost.
+ * @returns {string} formatted cost or an empty string.
+ */
+export function formatCurrency(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return ''
+  if (value < 0.01) return `<$0.01`
+  return `$${value >= 100 ? value.toFixed(0) : value.toFixed(2)}`
+}
+
+/**
  * Clamp one panel width into the allowed range.
  * @param {unknown} value requested width.
  * @returns {number} clamped width.

@@ -46,6 +46,8 @@ globalThis.window = {
   removeEventListener() {},
   setInterval: () => 0,
   clearInterval() {},
+  setTimeout: () => 0,
+  clearTimeout() {},
 }
 globalThis.ResizeObserver = class {
   observe() {}

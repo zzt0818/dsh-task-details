@@ -24,6 +24,7 @@ const root = path.dirname(fileURLToPath(import.meta.url))
 const ORDER = [
   'model.js',
   'analyzer.js',
+  'icons.js',
   'copy.js',
   'styles.js',
   'preference.js',

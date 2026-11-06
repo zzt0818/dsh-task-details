@@ -147,6 +147,22 @@ window.__ModuleLoader__.load({
       }
 
       /**
+       * Format an estimated cost in the provider's currency unit.
+       *
+       * The journal does not say which currency a rate belongs to, so the figure is
+       * shown without a currency symbol: a guessed one could be wrong in either
+       * direction, and the plain number is still comparable across tasks.
+       *
+       * @param {number | undefined} value cost.
+       * @returns {string} formatted cost or an empty string.
+       */
+      function formatCurrency(value) {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return ''
+        if (value < 0.01) return `<$0.01`
+        return `$${value >= 100 ? value.toFixed(0) : value.toFixed(2)}`
+      }
+
+      /**
        * Clamp one panel width into the allowed range.
        * @param {unknown} value requested width.
        * @returns {number} clamped width.
@@ -287,7 +303,7 @@ window.__ModuleLoader__.load({
         return { reusable: reasons.length > 0, reasons }
       }
 
-      __exports["model.js"] = { taskAddress, parseTaskAddress, usageBucket, formatBytes, formatCount, formatDuration, formatTime, clampWidth, prettyPath, directoryOf, fileAddress, languageSummary, reuseVerdict, DETAILS_KIND, DETAILS_ID, NS, PREFERENCE_KEY, WIDTH_MIN, WIDTH_MAX, WIDTH_DEFAULT, WIDTH_DETAILED, WIDTH_STACKED, DETAILS_ROUTE, JOURNAL_ROUTE };
+      __exports["model.js"] = { taskAddress, parseTaskAddress, usageBucket, formatBytes, formatCount, formatDuration, formatTime, formatCurrency, clampWidth, prettyPath, directoryOf, fileAddress, languageSummary, reuseVerdict, DETAILS_KIND, DETAILS_ID, NS, PREFERENCE_KEY, WIDTH_MIN, WIDTH_MAX, WIDTH_DEFAULT, WIDTH_DETAILED, WIDTH_STACKED, DETAILS_ROUTE, JOURNAL_ROUTE };
 
       return __exports["model.js"] ?? {}
     })
@@ -960,6 +976,135 @@ window.__ModuleLoader__.load({
 
       return __exports["analyzer.js"] ?? {}
     })
+    __define("icons.js", () => {
+      // ---- icons.js ----
+      /**
+       * Inline SVG icons for the task-details panel.
+       *
+       * Icons are built as vectors so they stay crisp at any panel size and inherit
+       * their colour from CSS (`currentColor`), which keeps them correct in both
+       * themes without shipping any image asset. Every glyph lives in a shared
+       * 16×16 grid and reads at the sizes the panel uses (11–15px).
+       */
+
+      /** Glyph operations per icon kind, drawn on a 16×16 grid. */
+      const ICONS = {
+        /** A page with a folded corner and text lines: the generic document. */
+        doc: [
+          { tag: 'path', attrs: { d: 'M4 1.75h5.1L12.5 5v9.25a.75.75 0 0 1-.75.75h-7.5A.75.75 0 0 1 3.5 14.25V2.5a.75.75 0 0 1 .75-.75Z', 'stroke-linejoin': 'round' } },
+          { tag: 'path', attrs: { d: 'M9 1.9v3.2h3.3', 'stroke-linejoin': 'round' } },
+          { tag: 'path', attrs: { d: 'M5.6 8h4.8M5.6 10.4h4.8M5.6 12.6h3', 'stroke-linecap': 'round' } },
+        ],
+        /** Angle brackets and a slash: source code and scripts. */
+        code: [
+          { tag: 'path', attrs: { d: 'M5.5 6 3 8l2.5 2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } },
+          { tag: 'path', attrs: { d: 'M10.5 6 13 8l-2.5 2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } },
+          { tag: 'path', attrs: { d: 'M9.2 4.5 6.8 11.5', 'stroke-linecap': 'round' } },
+        ],
+        /** A framed picture with a sun and a horizon: images. */
+        image: [
+          { tag: 'rect', attrs: { x: 2.75, y: 3.75, width: 10.5, height: 8.5, rx: 1 } },
+          { tag: 'circle', attrs: { cx: 5.6, cy: 6.6, r: 1.05 } },
+          { tag: 'path', attrs: { d: 'M2.9 11.4 6 8.4l2.4 2.3 1.8-1.7 2.9 2.4', 'stroke-linejoin': 'round' } },
+        ],
+        /** A table with a header row: structured data and spreadsheets. */
+        data: [
+          { tag: 'rect', attrs: { x: 2.75, y: 3.25, width: 10.5, height: 9.5, rx: 1 } },
+          { tag: 'path', attrs: { d: 'M2.75 6.4h10.5' } },
+          { tag: 'path', attrs: { d: 'M6.6 6.4v6.35M10.3 6.4v6.35' } },
+        ],
+        /** A shipping box with a handle: archives, bundles, and logs. */
+        archive: [
+          { tag: 'path', attrs: { d: 'M2.75 5.6 5.1 2.85h5.8l2.35 2.75v7.55a.7.7 0 0 1-.7.7H3.45a.7.7 0 0 1-.7-.7Z', 'stroke-linejoin': 'round' } },
+          { tag: 'path', attrs: { d: 'M2.75 5.6h10.5' } },
+          { tag: 'path', attrs: { d: 'M6.1 5.6v1.6a1.9 1.9 0 0 0 3.8 0V5.6' } },
+        ],
+        /** A folder: directories. */
+        folder: [
+          { tag: 'path', attrs: { d: 'M2.25 4.25a.75.75 0 0 1 .75-.75h3.1L7.6 5.3h5.4a.75.75 0 0 1 .75.75v6.95a.75.75 0 0 1-.75.75H3a.75.75 0 0 1-.75-.75Z', 'stroke-linejoin': 'round' } },
+        ],
+        /** A four-point spark with a small companion: skill invocations. */
+        skill: [
+          { tag: 'path', attrs: { d: 'M8 2.6c.42 2.7 1.98 4.26 4.68 4.68-2.7.42-4.26 1.98-4.68 4.68-.42-2.7-1.98-4.26-4.68-4.68 2.7-.42 4.26-1.98 4.68-4.68Z', 'stroke-linejoin': 'round' } },
+          { tag: 'path', attrs: { d: 'M12.4 10.9c.16 1 .75 1.59 1.75 1.75-1 .16-1.59.75-1.75 1.75-.16-1-.75-1.59-1.75-1.75 1-.16 1.59-.75 1.75-1.75Z', 'stroke-linejoin': 'round' } },
+        ],
+        /** A circular arrow: refresh file information. */
+        refresh: [
+          { tag: 'path', attrs: { d: 'M12.7 7.6a4.8 4.8 0 1 1-1.3-3.1', 'stroke-linecap': 'round' } },
+          { tag: 'path', attrs: { d: 'M12.8 2.9v2.6h-2.6', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } },
+        ],
+        /** Two chevrons pointing up and down: expand/collapse all sections. */
+        expand: [
+          { tag: 'path', attrs: { d: 'M4.2 6.2 8 2.6l3.8 3.6', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } },
+          { tag: 'path', attrs: { d: 'M4.2 9.8 8 13.4l3.8-3.6', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } },
+        ],
+        /** A small chevron pointing right: section / metric affordances. */
+        chevron: [
+          { tag: 'path', attrs: { d: 'M6 3.5 10.5 8 6 12.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } },
+        ],
+      }
+
+      /** Extension buckets, lowercase with the leading dot. */
+      const CODE_EXT = new Set([
+        '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.ps1', '.psm1', '.sh',
+        '.bat', '.cmd', '.go', '.rs', '.java', '.cs', '.c', '.cpp', '.rb', '.php',
+        '.html', '.css',
+      ])
+      const DOC_EXT = new Set(['.md', '.txt', '.doc', '.docx', '.rtf', '.pdf'])
+      const DATA_EXT = new Set(['.json', '.jsonl', '.csv', '.tsv', '.xlsx', '.xls', '.yml', '.yaml', '.toml', '.xml', '.sql', '.ini'])
+      const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp'])
+      const ARCHIVE_EXT = new Set(['.zstd', '.zip', '.gz', '.tar', '.7z', '.rar'])
+
+      /**
+       * Pick the icon kind that represents one file.
+       * @param {{ kind?: string, path?: string, name?: string }} file the file row.
+       * @returns {string} an icon kind.
+       */
+      function iconKindForFile(file) {
+        if (file?.kind === 'directory') return 'folder'
+        const text = typeof file?.path === 'string' ? file.path : file?.name
+        if (typeof text !== 'string') return 'doc'
+        const index = text.lastIndexOf('.')
+        if (index < 0) return 'doc'
+        const extension = text.slice(index).toLowerCase()
+        if (CODE_EXT.has(extension)) return 'code'
+        if (DOC_EXT.has(extension)) return 'doc'
+        if (DATA_EXT.has(extension)) return 'data'
+        if (IMAGE_EXT.has(extension)) return 'image'
+        if (ARCHIVE_EXT.has(extension)) return 'archive'
+        return 'doc'
+      }
+
+      /**
+       * Build one icon element.
+       * @param {Function} h the createElement function to build with.
+       * @param {string} kind an icon kind.
+       * @param {string} className class for the `svg` element.
+       * @param {number} [size] rendered square size.
+       * @returns {object} the icon element.
+       */
+      function buildIcon(h, kind, className, size = 12) {
+        const ops = ICONS[kind] ?? ICONS.doc
+        return h(
+          'svg',
+          {
+            className,
+            viewBox: '0 0 16 16',
+            width: size,
+            height: size,
+            'aria-hidden': true,
+            focusable: false,
+          },
+          ops.map((op, index) =>
+            h(op.tag, { key: index, fill: 'none', stroke: 'currentColor', strokeWidth: 1.3, ...op.attrs }),
+          ),
+        )
+      }
+
+      __exports["icons.js"] = { iconKindForFile, buildIcon };
+
+      return __exports["icons.js"] ?? {}
+    })
     __define("copy.js", () => {
       // ---- copy.js ----
       /**
@@ -979,6 +1124,13 @@ window.__ModuleLoader__.load({
         'panel.close': '关闭',
         'panel.refresh': '刷新文件信息',
         'panel.resize': '拖拽调整宽度',
+        'panel.toggle': '展开或折叠该区块',
+        'panel.collapseAll': '折叠全部区块',
+        'panel.expandAll': '展开全部区块',
+        'section.count': '{count} 项',
+        'problem.noSession': '无法确定所属会话，请从任务底部按钮打开。',
+        'problem.noTurn': '无法确定对应的任务编号，请重新打开。',
+        'metrics.jumpTo': '点击跳转到「{section}」',
         'status.running': '进行中',
         'status.completed': '已完成',
         'status.error': '失败',
@@ -1114,6 +1266,13 @@ window.__ModuleLoader__.load({
         'panel.close': 'Close',
         'panel.refresh': 'Refresh file information',
         'panel.resize': 'Drag to resize',
+        'panel.toggle': 'Expand or collapse this section',
+        'panel.collapseAll': 'Collapse all sections',
+        'panel.expandAll': 'Expand all sections',
+        'section.count': '{count} items',
+        'problem.noSession': 'Could not resolve the owning session; open the panel from the task footer.',
+        'problem.noTurn': 'Could not resolve the task number; please reopen.',
+        'metrics.jumpTo': 'Jump to "{section}"',
         'status.running': 'Running',
         'status.completed': 'Completed',
         'status.error': 'Failed',
@@ -1277,6 +1436,16 @@ window.__ModuleLoader__.load({
         --td-measure: 720px;
         --td-sans: var(--dsw-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
           "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif);
+        /* The public Theme contract exposes a small, stable set of tokens. Some
+           profiles do not resolve the wider alias names used below, so each gets a
+           fallback to a guaranteed token. One theme change then repairs every
+           surface that depended on a missing alias. */
+        --td-tertiary: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
+        --td-module: var(--dsw-alias-bg-module-platform, var(--dsw-alias-bg-layer-2));
+        --td-border-l3: var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
+        --td-link: var(--dsw-alias-link, var(--dsw-alias-brand-primary));
+        --td-hover: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-2));
+        --td-business: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary));
       }
 
       /* ---- trigger ------------------------------------------------------------- */
@@ -1292,7 +1461,7 @@ window.__ModuleLoader__.load({
         gap: 7px;
         height: 32px;
         padding: 0 12px;
-        border: var(--td-line) solid var(--dsw-alias-border-l3);
+        border: var(--td-line) solid var(--td-border-l3);
         border-radius: var(--td-radius-sm, 7px);
         background: var(--dsw-alias-bg-layer-2);
         color: var(--dsw-alias-label-primary);
@@ -1308,7 +1477,7 @@ window.__ModuleLoader__.load({
         transition: background-color .14s ease, color .14s ease, border-color .14s ease;
       }
       .td-trigger:hover {
-        background: var(--dsw-alias-interactive-bg-hover);
+        background: var(--td-hover);
         color: var(--dsw-alias-brand-primary);
         border-color: var(--dsw-alias-brand-primary);
       }
@@ -1337,7 +1506,7 @@ window.__ModuleLoader__.load({
         width: 12px;
         text-align: center;
         font-size: var(--td-text-3xs);
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
       }
       .td-fileIcon.ok { color: var(--dsw-alias-state-success-primary); }
       .td-fileIcon.missing { color: var(--dsw-alias-state-warn-primary); }
@@ -1368,7 +1537,7 @@ window.__ModuleLoader__.load({
         min-width: 0;
       }
       .td-fileName:hover:not(:disabled) {
-        color: var(--dsw-alias-link);
+        color: var(--td-link);
         text-decoration: underline;
       }
       /* A name that cannot be opened must not look like one that can. */
@@ -1388,16 +1557,16 @@ window.__ModuleLoader__.load({
         line-height: 16px;
         padding: 0 6px;
         border-radius: 999px;
-        background: var(--dsw-alias-bg-module-platform);
-        color: var(--dsw-alias-label-tertiary);
+        background: var(--td-module);
+        color: var(--td-tertiary);
       }
-      .td-fileBadge.badge--write { color: var(--dsw-alias-state-business-primary); }
+      .td-fileBadge.badge--write { color: var(--td-business); }
       .td-fileBadge.badge--deliver { color: var(--dsw-alias-state-success-primary); }
       .td-fileSize {
         margin-inline-start: auto;
         flex: none;
         font-size: var(--td-text-xs);
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
         font-variant-numeric: tabular-nums;
       }
 
@@ -1415,7 +1584,7 @@ window.__ModuleLoader__.load({
         outline: none;
         margin: 0;
         padding: 0 3px;
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
         font: inherit;
         font-size: 12px;
         line-height: 1;
@@ -1440,7 +1609,7 @@ window.__ModuleLoader__.load({
         margin-top: 2px;
         font-family: var(--td-mono);
         font-size: var(--td-text-2xs);
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
         /* The save path is the detail the reader widens the panel for, so it wraps
            onto a second line rather than ending in an ellipsis. */
         white-space: normal;
@@ -1454,11 +1623,11 @@ window.__ModuleLoader__.load({
         gap: 4px 0;
         margin-top: 4px;
         font-size: var(--td-text-xs);
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
       }
-      .td-fileTools { display: none; margin-top: 3px; font-size: var(--td-text-2xs); color: var(--dsw-alias-label-tertiary); }
+      .td-fileTools { display: none; margin-top: 3px; font-size: var(--td-text-2xs); color: var(--td-tertiary); }
       .td-kv { display: inline-flex; gap: 5px; align-items: baseline; }
-      .td-kvKey { color: var(--dsw-alias-label-tertiary); }
+      .td-kvKey { color: var(--td-tertiary); }
       .td-kvValue { color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; }
       .td-kvValue.warn { color: var(--dsw-alias-state-warn-primary); }
       .td-kv + .td-kv::before {
@@ -1488,7 +1657,7 @@ window.__ModuleLoader__.load({
         flex: none;
         font-size: 16px;
         line-height: 1;
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
       }
       .td-triggerProblem {
         font-size: 12px;
@@ -1569,14 +1738,25 @@ window.__ModuleLoader__.load({
         font-weight: 600;
         letter-spacing: .01em;
       }
+      .td-toolbarIcon {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: var(--td-module);
+        color: var(--dsw-alias-brand-primary);
+      }
       .td-toolbarSub { font-size: var(--td-text-sm); color: var(--dsw-alias-label-secondary); }
       .td-toolbarMeta {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         margin-inline-start: auto;
         font-size: var(--td-text-xs);
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
         font-variant-numeric: tabular-nums;
       }
       .td-toolbarModel {
@@ -1584,8 +1764,36 @@ window.__ModuleLoader__.load({
         font-size: var(--td-text-xs);
         padding: 2px 7px;
         border-radius: 999px;
-        background: var(--dsw-alias-bg-module-platform);
+        background: var(--td-module);
         color: var(--dsw-alias-label-secondary);
+      }
+
+      /* ---- toolbar actions: collapse-all and refresh --------------------------- */
+      .td-toolbarActions { display: inline-flex; align-items: center; gap: 2px; }
+      .td-toolbarButton {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        /* Unlike the row copy control these are permanent chrome: always visible,
+           never hidden until hover. */
+        opacity: 1;
+        color: var(--td-tertiary);
+        transition: background-color .14s ease, color .14s ease;
+      }
+      .td-toolbarButton:hover { background: var(--td-hover); color: var(--dsw-alias-label-primary); }
+      .td-toolbarButton:focus-visible {
+        opacity: 1;
+        outline: 2px solid var(--dsw-alias-brand-primary);
+        outline-offset: 1px;
+      }
+      .td-toolbarButton--active { color: var(--dsw-alias-brand-primary); }
+      .td-toolbarButton--error { color: var(--dsw-alias-state-warn-primary); }
+      .td-toolbarGlyph { display: block; }
+      .td-toolbarGlyph--flipped { transform: rotate(180deg); }
+      .td-toolbarButton--busy .td-toolbarGlyph { animation: td-spin 1s linear infinite; }
+      @keyframes td-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        .td-toolbarButton--busy .td-toolbarGlyph { animation: none; }
       }
 
       .td-scroll {
@@ -1597,7 +1805,7 @@ window.__ModuleLoader__.load({
         scrollbar-width: thin;
         /* The token this used to name does not exist in the host's theme, so the
            rule silently did nothing. These are the two the shipped panels use. */
-        scrollbar-color: var(--dsw-alias-border-l3) transparent;
+        scrollbar-color: var(--td-border-l3) transparent;
       }
 
       /* ---- metrics: one compact strip ----------------------------------------- */
@@ -1621,7 +1829,7 @@ window.__ModuleLoader__.load({
       }
       .td-metricLabel {
         font-size: var(--td-text-xs);
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
         white-space: nowrap;
       }
       .td-metricValue {
@@ -1666,8 +1874,17 @@ window.__ModuleLoader__.load({
       }
       .td-empty {
         font-size: var(--td-text-sm);
-        color: var(--dsw-alias-label-tertiary);
-        padding: 1px 0;
+        color: var(--td-tertiary);
+        padding: 2px 0 2px 16px;
+        position: relative;
+      }
+      /* A quiet dash before "None" reads as an intentional empty state instead of
+         a line that forgot to render, especially beside dense sections. */
+      .td-empty::before {
+        content: '\2014';
+        position: absolute;
+        left: 0;
+        color: var(--td-border-l3);
       }
 
       /* ---- quiet chips: languages, attachments, tool names --------------------- */
@@ -1687,7 +1904,7 @@ window.__ModuleLoader__.load({
         max-width: 100%;
         padding: 1px 8px;
         border-radius: 999px;
-        background: var(--dsw-alias-bg-module-platform);
+        background: var(--td-module);
         color: var(--dsw-alias-label-secondary);
         font-size: var(--td-text-xs);
         line-height: 18px;
@@ -1695,7 +1912,7 @@ window.__ModuleLoader__.load({
         white-space: normal;
         overflow-wrap: anywhere;
       }
-      .td-chip--muted { background: none; color: var(--dsw-alias-label-tertiary); padding-inline: 2px; }
+      .td-chip--muted { background: none; color: var(--td-tertiary); padding-inline: 2px; }
 
       /* ---- outcome notes under the deliverables -------------------------------- */
       .td-outcome {
@@ -1725,7 +1942,7 @@ window.__ModuleLoader__.load({
         width: 5px;
         height: 5px;
         border-radius: 50%;
-        background: var(--dsw-alias-label-tertiary);
+        background: var(--td-tertiary);
       }
       .td-outcomeItem--delivered::before { background: var(--dsw-alias-state-success-primary); }
       .td-outcomeItem--failed::before { background: var(--dsw-alias-state-warn-primary); }
@@ -1776,7 +1993,7 @@ window.__ModuleLoader__.load({
       }
       .td-tableRow--skill .td-tableName { color: var(--dsw-alias-brand-primary); }
       .td-tableCount { font-size: var(--td-text-xs); color: var(--dsw-alias-label-secondary); }
-      .td-tableDim { font-size: var(--td-text-xs); color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+      .td-tableDim { font-size: var(--td-text-xs); color: var(--td-tertiary); font-variant-numeric: tabular-nums; }
       .td-tableWarn { font-size: var(--td-text-xs); color: var(--dsw-alias-state-warn-primary); }
       /* A long tool or skill name wraps inside its own row instead of pushing the
          counts off the edge. */
@@ -1804,20 +2021,47 @@ window.__ModuleLoader__.load({
         flex: none;
         width: 72px;
         font-size: var(--td-text-xs);
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
       }
       .td-factValue {
         margin: 0;
         min-width: 0;
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
         font-size: var(--td-text-sm);
         color: var(--dsw-alias-label-primary);
+        /* Figures are compared down a column, so they are tabular and share one
+           right edge inside their own cell without dragging the label along. */
+        font-variant-numeric: tabular-nums;
         /* A long value wraps onto its own lines instead of ending in an ellipsis. */
         overflow-wrap: anywhere;
       }
-      .td-factValue--ok { color: var(--dsw-alias-state-success-primary); font-weight: 600; }
-      .td-factValue--run { color: var(--dsw-alias-brand-primary); font-weight: 600; }
-      .td-factValue--warn { color: var(--dsw-alias-state-warn-primary); font-weight: 600; }
-      .td-factValue--muted { color: var(--dsw-alias-label-tertiary); }
+      /* A number sits at the right edge of its column; prose (a model name, a path)
+         stays left, because right-aligned words read ragged. */
+      .td-fact--numeric .td-factValue { justify-content: flex-end; }
+      .td-fact--numeric .td-factText { font-variant-numeric: tabular-nums; }
+      /* A status is a word, not a link: a dot carries the colour and the text keeps
+         the ordinary label colour, so the row does not read as clickable. */
+      .td-factValue--ok, .td-factValue--run, .td-factValue--warn { font-weight: 600; }
+      .td-factValue--ok { color: var(--dsw-alias-label-primary); }
+      .td-factValue--run { color: var(--dsw-alias-label-primary); }
+      .td-factValue--warn { color: var(--dsw-alias-label-primary); }
+      .td-statusDot {
+        flex: none;
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-right: 6px;
+        background: currentColor;
+      }
+      .td-statusDot--ok { background: var(--dsw-alias-state-success-primary); }
+      .td-statusDot--run { background: var(--dsw-alias-brand-primary); }
+      .td-statusDot--warn { background: var(--dsw-alias-state-warn-primary); }
+      .td-factValue--muted { color: var(--td-tertiary); }
       .td-fact code {
         font-family: var(--td-mono);
         font-size: var(--td-text-xs);
@@ -1865,7 +2109,7 @@ window.__ModuleLoader__.load({
       .td-phase + .td-phase::before {
         content: '\203A';
         margin-inline-end: 2px;
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
         font-size: var(--td-text-xs);
       }
       .td-phaseDot {
@@ -1876,7 +2120,7 @@ window.__ModuleLoader__.load({
         background: var(--dsw-alias-brand-primary);
       }
       .td-phase--deliver .td-phaseDot { background: var(--dsw-alias-state-success-primary); }
-      .td-phase--run .td-phaseDot { background: var(--dsw-alias-state-business-primary); }
+      .td-phase--run .td-phaseDot { background: var(--td-business); }
       .td-phase--warn .td-phaseDot { background: var(--dsw-alias-state-warn-primary); }
       .td-phaseLabel { white-space: nowrap; }
       .td-phaseSample {
@@ -1897,8 +2141,8 @@ window.__ModuleLoader__.load({
         text-align: center;
         padding: 0 3px;
         border-radius: 999px;
-        background: var(--dsw-alias-bg-module-platform);
-        color: var(--dsw-alias-label-tertiary);
+        background: var(--td-module);
+        color: var(--td-tertiary);
         font-variant-numeric: tabular-nums;
       }
       /* A failure count sits on the chip it belongs to, so the reader can point at
@@ -1922,7 +2166,7 @@ window.__ModuleLoader__.load({
         align-items: center;
         font-size: var(--td-text-3xs);
         line-height: 20px;
-        color: var(--dsw-alias-label-tertiary);
+        color: var(--td-tertiary);
         white-space: nowrap;
       }
       .td-phaseEnd--start::after,
@@ -1931,7 +2175,7 @@ window.__ModuleLoader__.load({
         display: inline-block;
         width: 12px;
         height: 1px;
-        background: var(--dsw-alias-border-l3);
+        background: var(--td-border-l3);
         margin-inline: 3px;
       }
       .td-pill {
@@ -1940,25 +2184,317 @@ window.__ModuleLoader__.load({
         line-height: 18px;
         padding: 0 8px;
         border-radius: 999px;
-        background: var(--dsw-alias-bg-module-platform);
+        background: var(--td-module);
         color: var(--dsw-alias-label-secondary);
       }
       .td-pill--completed { color: var(--dsw-alias-state-success-primary); }
       .td-pill--running { color: var(--dsw-alias-brand-primary); }
       .td-pill--error, .td-pill--blocked { color: var(--dsw-alias-state-warn-primary); }
 
-      .td-loading { font-size: var(--td-text-sm); color: var(--dsw-alias-label-tertiary); }
-      .td-debug {
-        margin-top: 10px;
-        font-family: var(--td-mono);
+      .td-loading { font-size: var(--td-text-sm); color: var(--td-tertiary); }
+
+      /* ---- error / load message with a retry ------------------------------------ */
+      .td-loadMessage {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        max-width: var(--td-measure);
+        margin-inline: auto;
+        margin-top: var(--td-pad);
+        padding: 14px 16px;
+        border: var(--td-line) solid var(--td-border-l3);
+        border-radius: var(--td-radius);
+        background: var(--dsw-alias-bg-layer-1);
+      }
+      .td-retry {
+        -webkit-appearance: none;
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border: var(--td-line) solid var(--dsw-alias-brand-primary);
+        border-radius: var(--td-radius-sm);
+        background: var(--dsw-alias-bg-layer-2);
+        color: var(--dsw-alias-brand-primary);
+        font: inherit;
+        font-size: var(--td-text-sm);
+        cursor: pointer;
+      }
+      .td-retry:hover { background: var(--td-hover); }
+      .td-retry:focus-visible {
+        outline: 2px solid var(--dsw-alias-brand-primary);
+        outline-offset: 2px;
+      }
+      .td-retryGlyph { display: block; }
+
+      /* ---- loading skeleton ----------------------------------------------------- */
+      /* Placeholder bars, not a bare line of text: they hold the panel's shape while
+         the journal loads, so the content does not jump when it arrives. */
+      .td-skeleton {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: var(--td-measure);
+        margin-inline: auto;
+        margin-top: var(--td-gap);
+      }
+      .td-skeletonRow {
+        height: 12px;
+        border-radius: 6px;
+        background: var(--td-module);
+        animation: td-pulse 1.4s ease-in-out infinite alternate;
+      }
+      .td-skeletonRow:nth-child(1) { width: 46%; }
+      .td-skeletonRow:nth-child(2) { width: 82%; }
+      .td-skeletonRow:nth-child(3) { width: 64%; }
+      .td-skeletonRow:nth-child(4) { width: 74%; }
+      @keyframes td-pulse {
+        from { opacity: 1; }
+        to { opacity: .4; }
+      }
+
+      /* ---- phase preview (fixed popover) ---------------------------------------- */
+      /* Rendered at the document level, so it styles itself completely: no
+         background would leave it unreadable over the panel's own text. */
+      .td-preview {
+        position: fixed;
+        z-index: 40;
+        max-width: 340px;
+        padding: 10px 12px;
+        border: var(--td-line) solid var(--td-border-l3);
+        border-radius: var(--td-radius, 10px);
+        background: var(--dsw-alias-bg-layer-2);
+        color: var(--dsw-alias-label-primary);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+        font-family: var(--td-sans, inherit);
         font-size: var(--td-text-xs);
-        line-height: 1.6;
-        color: var(--dsw-alias-label-tertiary);
-        word-break: break-all;
+        line-height: 1.5;
+        pointer-events: none;
+      }
+      .td-previewHead {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 4px;
+      }
+      .td-previewKind { font-weight: 600; font-size: var(--td-text-sm); }
+      .td-previewSteps { color: var(--td-tertiary); font-size: var(--td-text-2xs); }
+      .td-previewFail { color: var(--dsw-alias-state-warn-primary); font-size: var(--td-text-2xs); }
+      .td-previewTools {
+        font-family: var(--td-mono);
+        font-size: var(--td-text-2xs);
+        color: var(--dsw-alias-label-secondary);
+        overflow-wrap: anywhere;
+      }
+      .td-previewList {
+        margin: 6px 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-height: 180px;
+        overflow: hidden;
+      }
+      .td-previewList li {
+        font-family: var(--td-mono);
+        font-size: var(--td-text-2xs);
+        color: var(--td-tertiary);
+        overflow-wrap: anywhere;
+      }
+
+      /* ---- collapsible sections -------------------------------------------------- */
+      .td-sectionToggle {
+        -webkit-appearance: none;
+        appearance: none;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 6px;
+        background: none;
+        border: 0;
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        text-align: start;
+        min-width: 0;
+      }
+      .td-sectionToggle:hover .td-sectionTitle,
+      .td-sectionToggle:focus-visible .td-sectionTitle { color: var(--dsw-alias-label-primary); }
+      /* A count badge answers "how much is in here" before the block is opened,
+         and stays useful when collapsed so the block is not just a bare heading. */
+      .td-sectionCount {
+        flex: none;
+        font-size: var(--td-text-3xs);
+        line-height: 16px;
+        min-width: 17px;
+        padding: 0 5px;
+        text-align: center;
+        border-radius: 999px;
+        background: var(--td-module);
+        color: var(--td-tertiary);
+        font-variant-numeric: tabular-nums;
+      }
+      .td-section--collapsed .td-sectionCount { opacity: .75; }
+      .td-sectionToggle:focus-visible {
+        outline: 2px solid var(--dsw-alias-brand-primary);
+        outline-offset: 2px;
+        border-radius: 3px;
+      }
+      .td-sectionChevron {
+        flex: none;
+        font-size: var(--td-text-xs);
+        color: var(--td-tertiary);
+        transition: transform .14s ease;
+        /* Open points the chevron down, reading as "expanded". */
+        transform: rotate(90deg);
+        transform-origin: center;
+      }
+      .td-section--collapsed .td-sectionChevron { transform: rotate(0deg); }
+      .td-section--collapsed .td-sectionBody { display: none; }
+      .td-section--collapsed { padding-bottom: 9px; }
+
+      /* ---- cache hit-rate bar ---------------------------------------------------- */
+      /* Rides beside its own percentage instead of occupying a row of its own: an
+         unlabelled full-width row in a label/value list split the list in two and
+         read as a broken entry. Tall enough and dark enough to read as a bar rather
+         than a hairline: at 4px the fill and the track were nearly the same weight
+         in a narrow panel. */
+      .td-cacheBar {
+        flex: none;
+        display: flex;
+        align-items: stretch;
+        width: 96px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--dsw-alias-border-l2);
+        box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l1);
+        overflow: hidden;
+      }
+      /* Hit and miss are both drawn: on a 99.6% turn the only readable difference is
+         the sliver of uncached prompt, so the miss gets its own colour instead of
+         being indistinguishable from a full bar. */
+      .td-cacheBarFill {
+        display: block;
+        height: 100%;
+        background: var(--dsw-alias-brand-primary);
+      }
+      .td-cacheBarMiss {
+        display: block;
+        height: 100%;
+        background: var(--dsw-alias-state-warn-primary);
+      }
+      /* The percentage carries the reading; the bar only confirms it at a glance. */
+      .td-factValue .td-factText { font-variant-numeric: tabular-nums; }
+      .td-cachePct { font-weight: 600; }
+
+      /* ---- share bars on token rows ---------------------------------------------- */
+      /* Each token row carries the slice of the total it accounts for. The row is the
+         unit of comparison here, so these sit left-aligned right after their number
+         instead of being pushed to a right edge: a share is read against the row
+         above it, not against the panel edge. */
+      .td-shareBar {
+        flex: none;
+        display: block;
+        width: 72px;
+        height: 5px;
+        border-radius: 999px;
+        background: var(--dsw-alias-border-l2);
+        overflow: hidden;
+      }
+      .td-shareBarFill {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--td-tertiary);
+        /* A tiny share still needs to be visible as a mark, not vanish into the track. */
+        min-width: 2px;
+      }
+      /* The colour says what the slice is: prompt the provider processed fresh,
+         prompt it read from cache, or tokens it generated. */
+      .td-shareBarFill--ok { background: var(--dsw-alias-state-success-primary); }
+      .td-shareBarFill--warn { background: var(--dsw-alias-state-warn-primary); }
+      .td-shareBarFill--run { background: var(--dsw-alias-brand-primary); }
+      .td-shareBarFill--muted { background: var(--td-tertiary); }
+
+      /* ---- clickable metric chips ----------------------------------------------- */
+      .td-metric--link { cursor: pointer; transition: border-color .14s ease; }
+      .td-metric--link:hover { border-color: var(--dsw-alias-brand-primary); }
+      .td-metric--link:focus-visible {
+        outline: 2px solid var(--dsw-alias-brand-primary);
+        outline-offset: 2px;
+      }
+
+      /* ---- status dot inside the toolbar pill ----------------------------------- */
+      .td-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      /* The dot inherits the pill's own colour, so one rule covers every status. */
+      .td-pillDot {
+        flex: none;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      /* The copy button reveals itself only on pointer hover; on touch there is no
+         hover, so it stays visible there. */
+      @media (hover: none) {
+        .td-iconButton { opacity: 1; }
+      }
+      .td-iconButton--copied { opacity: 1; color: var(--dsw-alias-state-success-primary); }
+
+      /* ---- reusable verdict ----------------------------------------------------- */
+      /* One quiet line on top, one reason list under it. A "yes" reads in the brand
+         colour because it is the actionable answer; a "no" stays muted. */
+      .td-verdict {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: var(--td-text-sm);
+        min-width: 0;
+      }
+      .td-verdict--yes { color: var(--dsw-alias-label-primary); }
+      .td-verdict--yes .td-verdictIcon { color: var(--dsw-alias-brand-primary); }
+      .td-verdict--no { color: var(--td-tertiary); }
+      .td-verdictIcon { flex: none; display: inline-flex; }
+      .td-verdictLabel { overflow-wrap: anywhere; }
+      .td-verdictReasons {
+        margin: 6px 0 0;
+        padding: 0 0 0 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: var(--td-text-xs);
+        color: var(--dsw-alias-label-secondary);
+      }
+      .td-verdictReasons li { overflow-wrap: anywhere; }
+
+      /* The skill glyph inside the tool table inherits the row's brand colour. */
+      .td-skillicon { flex: none; margin-right: 4px; }
+      .td-tableRow--skill .td-skillicon { color: var(--dsw-alias-brand-primary); }
+
+      /* Jump highlight: a metric click scrolls here and the section pulses once. */
+      .td-section--flash {
+        border-color: var(--dsw-alias-brand-primary);
+        animation: td-flash 1.6s ease-out;
+      }
+      @keyframes td-flash {
+        0% { background: var(--td-module); }
+        100% { background: var(--dsw-alias-bg-layer-1); }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .td-trigger, .td-handle, .td-triggerChevron { transition: none; }
+        .td-trigger, .td-handle, .td-triggerChevron, .td-sectionChevron, .td-metric--link { transition: none; }
+        .td-skeletonRow { animation: none; opacity: .5; }
+        .td-section--flash { animation: none; }
       }
       `
 
@@ -2074,12 +2610,84 @@ window.__ModuleLoader__.load({
        * for. Layout turns compact cards into full detail tables as the panel grows.
        */
       const { buildTaskModel, foldTurns, summarizeCall, summarizeOutcome, summarizePhases } = __modules["analyzer.js"];
-      const { DETAILS_ROUTE, JOURNAL_ROUTE, WIDTH_MAX, WIDTH_MIN, directoryOf, fileAddress, formatBytes, formatCount, formatDuration, formatTime, languageSummary, prettyPath, reuseVerdict, usageBucket } = __modules["model.js"];
+      const { buildIcon, iconKindForFile } = __modules["icons.js"];
+      const { DETAILS_ROUTE, JOURNAL_ROUTE, WIDTH_MAX, WIDTH_MIN, directoryOf, fileAddress, formatBytes, formatCount, formatCurrency, formatDuration, formatTime, languageSummary, prettyPath, reuseVerdict, usageBucket } = __modules["model.js"];
       const { DETAILS_PREFERENCE_KEY, readWidth, subscribeWidth, writeWidth } = __modules["preference.js"];
       /** @type {object} */
       let React
       /** @type {Function} */
       let h
+
+      /** Copy keys for a footer click that cannot resolve its task. */
+      const PROBLEM_COPY = {
+        'no session': 'problem.noSession',
+        'no turn': 'problem.noTurn',
+      }
+
+      /** Storage key for the per-reader collapsed-section set. */
+      const SECTIONS_PREFERENCE_KEY = DETAILS_PREFERENCE_KEY + '.sections'
+
+      /** Sections open by default; collapsing is opt-in per block. */
+      const DEFAULT_OPEN_SECTIONS = null
+
+      /** Every collapsible section id, in render order, for bulk toggling. */
+      const SECTION_IDS = ['overview', 'inputs', 'intermediate', 'outputs', 'tools', 'language', 'reusable', 'flow']
+
+      /**
+       * Read the persisted collapsed-section ids.
+       * @returns {string[]} ids.
+       */
+      function readCollapsedSections() {
+        try {
+          const raw = window.localStorage.getItem(SECTIONS_PREFERENCE_KEY)
+          if (raw === null) return DEFAULT_OPEN_SECTIONS ?? []
+          const parsed = JSON.parse(raw)
+          return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : []
+        } catch {
+          return []
+        }
+      }
+
+      /**
+       * Persist the collapsed-section ids.
+       * @param {string[]} ids collapsed ids.
+       */
+      function writeCollapsedSections(ids) {
+        try {
+          window.localStorage.setItem(SECTIONS_PREFERENCE_KEY, JSON.stringify(ids))
+        } catch {
+          /* storage is optional; a blocked write only costs persistence */
+        }
+      }
+
+      /**
+       * Toggle one section in the collapsed set.
+       * @param {string[]} collapsed current ids.
+       * @param {string} id section id.
+       * @returns {string[]} next ids.
+       */
+      function toggleCollapsed(collapsed, id) {
+        return collapsed.includes(id) ? collapsed.filter((entry) => entry !== id) : [...collapsed, id]
+      }
+
+      /**
+       * Subscribe to collapsed-section changes from other tabs.
+       * @param {(ids: string[]) => void} listener reader.
+       * @returns {() => void} unsubscribe.
+       */
+      function subscribeCollapsed(listener) {
+        const handler = (event) => {
+          if (event.key !== SECTIONS_PREFERENCE_KEY || event.newValue === null) return
+          try {
+            const parsed = JSON.parse(event.newValue)
+            if (Array.isArray(parsed)) listener(parsed.filter((id) => typeof id === 'string'))
+          } catch {
+            /* ignore malformed cross-tab values */
+          }
+        }
+        window.addEventListener('storage', handler)
+        return () => window.removeEventListener('storage', handler)
+      }
 
       /**
        * One Host journal request per Session, shared by every task tab.
@@ -2133,7 +2741,7 @@ window.__ModuleLoader__.load({
         let known = false
         for (const bucket of ['input', 'output', 'cacheRead', 'cacheWrite']) {
           const rate = price[bucket]
-          const tokens = usage[bucket]
+          const tokens = usageBucket(usage, bucket)
           if (typeof rate !== 'number' || typeof tokens !== 'number' || tokens === 0) continue
           known = true
           cost += (tokens / 1_000_000) * rate
@@ -2158,9 +2766,11 @@ window.__ModuleLoader__.load({
        * Fetch one Session's journal through the shared cache.
        *
        * @param {string} sessionId Session id.
+       * @param {boolean} [force] drop a cached success and fetch again.
        * @returns {Promise<object[]>} durable events in ascending seq order.
        */
-      function loadJournal(sessionId) {
+      function loadJournal(sessionId, force = false) {
+        if (force) journalRequests.delete(sessionId)
         const pending = journalRequests.get(sessionId)
         if (pending !== undefined) return pending
         const request = fetch(`${JOURNAL_ROUTE}?sessionId=${encodeURIComponent(sessionId)}`, {
@@ -2199,6 +2809,11 @@ window.__ModuleLoader__.load({
         // Seeded from the binding so the first paint already has content when the
         // Session is loaded; a Session this tab never opened starts as 'fetching'.
         const [state, setState] = React.useState(seed)
+        // A retry after a Host failure must bypass the shared request cache and
+        // re-run the effect; the failed request already deleted its cache entry, so
+        // only the tick is needed.
+        const [retryTick, setRetryTick] = React.useState(0)
+        const retry = React.useCallback(() => setRetryTick((value) => value + 1), [])
 
         React.useEffect(() => {
           if (typeof sessionId !== 'string') return undefined
@@ -2207,6 +2822,9 @@ window.__ModuleLoader__.load({
             if (!alive) return
             setState({ owner: sessionId, entries, origin, error })
           }
+          // A retry renders the skeleton again instead of leaving the error text
+          // frozen on screen while the new request is in flight.
+          if (retryTick > 0) setState({ owner: sessionId, entries: [], origin: 'fetching', error: undefined })
 
           // Show the binding immediately when it carries events.
           const live = source?.getSnapshot?.()?.entries ?? []
@@ -2220,7 +2838,7 @@ window.__ModuleLoader__.load({
 
           // Also fetch the persisted journal: it is the only source for a Session
           // that is not rendered in this tab, and a fast fallback otherwise.
-          loadJournal(sessionId)
+          loadJournal(sessionId, retryTick > 0)
             .then((events) => {
               if (!alive) return
               setState((previous) =>
@@ -2242,10 +2860,10 @@ window.__ModuleLoader__.load({
             alive = false
             unsubscribe?.()
           }
-        }, [sessionId, source])
+        }, [sessionId, source, retryTick])
 
         // A render for a different Session never shows the previous one's entries.
-        return state.owner === sessionId ? state : { owner: sessionId, entries: [], origin: 'fetching', error: undefined }
+        return state.owner === sessionId ? { ...state, retry } : { owner: sessionId, entries: [], origin: 'fetching', error: undefined, retry }
       }
       /**
        * Load Host file metadata for a task's paths, refreshing while mounted.
@@ -2268,6 +2886,10 @@ window.__ModuleLoader__.load({
         )
         const paths = model === null ? '' : model.files.map((file) => file.path).join('\n')
         const active = model !== null && override === undefined
+        // Bumping this re-runs the loader for a manual refresh or a retry after an
+        // error. React re-runs the effect, which also resets the polling interval.
+        const [refreshTick, setRefreshTick] = React.useState(0)
+        const refresh = React.useCallback(() => setRefreshTick((value) => value + 1), [])
         // The home directory is needed to make attachment rows clickable, and it is
         // reported even for an empty path list. Asking once, as soon as the panel
         // opens, means the very first paint can already open an attachment instead
@@ -2318,8 +2940,10 @@ window.__ModuleLoader__.load({
             controller.abort()
             window.clearInterval(timer)
           }
-        }, [paths, sessionId, active])
-        return { ...state, home: home ?? state.home }
+        }, [paths, sessionId, active, refreshTick])
+        // `busy` is only true for the first load or an explicit refresh: the quiet
+        // 30s polling keeps showing the last good data instead of flashing a state.
+        return { ...state, home: home ?? state.home, refresh }
       }
 
       /**
@@ -2331,29 +2955,53 @@ window.__ModuleLoader__.load({
         return [width, React.useCallback((next) => writeWidth(DETAILS_PREFERENCE_KEY, next), [])]
       }
 
-      /** One metric cell. */
-      function metric(label, value) {
+      /**
+       * One metric cell.
+       *
+       * When a target section is given the cell becomes a button that scrolls to
+       * that section, so a number on top answers "what is behind it" in one click.
+       *
+       * @param {string} label headline.
+       * @param {string | undefined} value formatted count; empty hides the cell.
+       * @param {{ target?: string, title?: string } | undefined} options link extras.
+       * @returns {object | null} element.
+       */
+      function metric(label, value, options, onJump) {
         if (value === '' || value === undefined || value === null) return null
+        if (options?.target === undefined) {
+          return h(
+            'div',
+            { className: 'td-metric', key: `m-${label}` },
+            h('div', { className: 'td-metricLabel' }, label),
+            h('div', { className: 'td-metricValue' }, value),
+          )
+        }
         return h(
-          'div',
-          { className: 'td-metric', key: `m-${label}` },
+          'button',
+          {
+            type: 'button',
+            className: 'td-metric td-metric--link',
+            key: `m-${label}`,
+            title: options.title ?? label,
+            onClick: () => (onJump ?? scrollToSection)(options.target),
+          },
           h('div', { className: 'td-metricLabel' }, label),
           h('div', { className: 'td-metricValue' }, value),
         )
       }
 
       /**
-       * One titled section.
-       *
-       * Sections take any number of content fragments, so a block can append extra
-       * rows (Host-side memory or Session logs, for example) after its main list
-       * without nesting another box.
-       *
+       * Scroll one named section into view. A no-op guard keeps the call safe in
+       * environments without a document; the smooth behaviour is CSS-driven, so a
+       * reader with reduced motion never sees the panel scroll itself fly.
        * @param {string} id section id.
-       * @param {string} title section title.
-       * @param {...object} children content fragments; falsy entries are skipped.
-       * @returns {object} element.
        */
+      function scrollToSection(id) {
+        if (typeof document === 'undefined') return
+        const node = document.querySelector(`[data-section="${id}"]`)
+        node?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
+      }
+
       /**
        * One label/value row in the overview.
        *
@@ -2361,24 +3009,106 @@ window.__ModuleLoader__.load({
        * it: fixed-width cards forced a timestamp and a model name into ellipses,
        * which told the reader nothing.
        *
+       * An optional extra element rides at the end of the same row, so a value can
+       * carry a small visual (a bar, a unit) without breaking the list into a stray
+       * unlabelled line — that stray line was what made the overview read unevenly.
+       *
        * @param {string} label row label.
        * @param {string} value row value.
        * @param {string} [tone] optional emphasis: "ok", "run", or "warn".
+       * @param {object} [extra] element rendered after the value in the same row.
        * @returns {object | null} element.
        */
-      function fact(label, value, tone) {
+      function fact(label, value, tone, extra) {
         if (value === '' || value === undefined) return null
+        // Only counts that a reader compares with their neighbours are pushed to the
+        // right edge. An identifier such as a task number, a timestamp, a percentage
+        // beside its own bar, or a duration (each one reads on its own) is not a
+        // column of magnitudes: right-aligning those flung them away from the label.
+        const text = String(value)
+        const comparable = /^\$[\d.,]+$/.test(text) || /^<\$[\d.]+$/.test(text)
         return h(
           'div',
-          { className: 'td-fact', key: 'fact-' + label },
+          { className: 'td-fact' + (comparable ? ' td-fact--numeric' : ''), key: 'fact-' + label },
           h('dt', { className: 'td-factKey' }, label),
-          h('dd', { className: 'td-factValue' + (tone === undefined ? '' : ' td-factValue--' + tone) }, value),
+          h(
+            'dd',
+            { className: 'td-factValue' + (tone === undefined ? '' : ' td-factValue--' + tone) },
+            // A toned value is a state word: the dot carries the colour and the text
+            // stays in the ordinary label colour, so the row does not look like a
+            // link. Every other value is plain text.
+            tone === undefined
+              ? h('span', { className: 'td-factText' }, value)
+              : [
+                  h('span', { className: 'td-statusDot td-statusDot--' + tone, 'aria-hidden': true, key: 'dot' }),
+                  h('span', { className: 'td-factText', key: 'text' }, value),
+                ],
+            extra ?? null,
+          ),
         )
       }
 
       /** The empty state of a section. */
       function empty(text) {
         return h('div', { className: 'td-empty' }, text)
+      }
+
+      /**
+       * Token counts as a readable block.
+       *
+       * Two ways to make a column comparable: one shared unit, or one shared shape.
+       * Sharing the unit looks tidier until the numbers differ by an order of
+       * magnitude — 7232 and 5766 both collapse to `0.01M`, so two different figures
+       * become indistinguishable. Each row therefore keeps the unit that suits its
+       * own size and sits beside a bar sized as its share of the prompt it belongs to.
+       *
+       * Shares are measured against the prompt total (fresh input + cache read), not
+       * against the grand total: a cached turn is often 300x its uncached part, and
+       * against a grand total both sides round to a sliver while the interesting
+       * comparison — how much of the prompt was reused — disappears into the track.
+       * Output and reasoning measure against the tokens generated.
+       *
+       * The row that is the whole carries no bar, because a full bar beside "total"
+       * says nothing.
+       *
+       * @param {Function} t translator.
+       * @param {[string, number | undefined, string?, string?][]} entries label / value / tone / `page` (which block the row belongs to).
+       * @param {string} barLabel accessible name of the bars.
+       * @returns {object[]} fact rows; rows without a value are dropped.
+       */
+      function tokenFacts(t, entries, barLabel) {
+        const present = entries.filter(([, value]) => typeof value === 'number' && Number.isFinite(value))
+        // A row with no page is a total: it measures the whole and wears no bar.
+        const pages = new Map()
+        for (const [, value, , page] of present) {
+          if (page === undefined) continue
+          pages.set(page, (pages.get(page) ?? 0) + value)
+        }
+        return present
+          .map(([label, value, tone, page]) => {
+            const base = page === undefined ? undefined : pages.get(page)
+            const share = base > 0 ? Math.min(100, (value / base) * 100) : undefined
+            const bar =
+              share === undefined
+                ? undefined
+                : h(
+                    'span',
+                    { className: 'td-shareBar', role: 'img', 'aria-label': barLabel + ' ' + share.toFixed(1) + '%', title: share.toFixed(1) + '%' },
+                    h('span', {
+                      className: 'td-shareBarFill td-shareBarFill--' + (tone ?? 'muted'),
+                      // Shares are drawn as the square root of the true ratio. At a
+                      // 99.7% hit rate the honest linear split is a 1px sliver, which
+                      // reads as "nothing there" and hides the very thing a reader
+                      // looks for — that some prompt was processed fresh. The rooted
+                      // scale keeps the order and the contrast while giving every
+                      // non-zero share a width the eye can find; the exact percentage
+                      // stays in the tooltip and the accessible name.
+                      style: { width: (value === 0 ? 0 : Math.max(2, Math.sqrt(share / 100) * 100)) + '%' },
+                    }),
+                  )
+            return fact(label, formatCount(value), undefined, bar)
+          })
+          .filter(Boolean)
       }
 
       /**
@@ -2418,24 +3148,30 @@ window.__ModuleLoader__.load({
 
       /**
        * One file row; the detail table inside it appears once the panel is wide.
+       *
+       * Copy feedback is owned by the panel (`copiedPath`), not the row: the test
+       * harness renders trees without executing function components, and one shared
+       * state also means at most one row claims "copied" at a time.
+       *
+       * @param {object} input row inputs.
+       * @returns {object} element.
        */
-      function fileRow(file, sessionId, t, openResource) {
+      function fileRow({ file, sessionId, t, openResource, copied, onCopy }) {
         const address = fileAddress(sessionId, file.path)
+        const copyCurrent = () => onCopy(file.path)
         const status = file.exists === true ? 'ok' : file.exists === false ? 'missing' : 'unknown'
         const roleLabel = t(
           file.role === 'read' ? 'file.role.read' : file.role === 'deliver' ? 'file.role.deliver' : 'file.role.write',
         )
+        const isCopied = copied === file.path
+        const glyph = iconKindForFile(file)
         return h(
           'div',
           { className: 'td-fileRow', key: file.path, title: file.path },
           h(
             'div',
             { className: 'td-fileHead' },
-            h(
-              'span',
-              { className: `td-fileIcon ${status}`, 'aria-hidden': true },
-              file.kind === 'directory' ? '\u25A6' : '\u25A4',
-            ),
+            buildIcon(h, glyph, `td-fileIcon ${status}`, 12),
             h(
               'button',
               {
@@ -2453,14 +3189,12 @@ window.__ModuleLoader__.load({
               'button',
               {
                 type: 'button',
-                className: 'td-iconButton',
-                title: t('file.reveal'),
-                'aria-label': t('file.reveal'),
-                onClick: () => {
-                  navigator.clipboard?.writeText(file.path).catch(() => {})
-                },
+                className: isCopied ? 'td-iconButton td-iconButton--copied' : 'td-iconButton',
+                title: t(isCopied ? 'file.copied' : 'file.reveal'),
+                'aria-label': t(isCopied ? 'file.copied' : 'file.reveal'),
+                onClick: copyCurrent,
               },
-              '\u29C9',
+              isCopied ? '\u2713' : '\u29C9',
             ),
           ),
           h('div', { className: 'td-filePath' }, prettyPath(directoryOf(file.path))),
@@ -2490,43 +3224,11 @@ window.__ModuleLoader__.load({
       }
 
       /**
-       * A small document glyph drawn as SVG, so the control keeps its icon in any
-       * theme and never depends on an emoji font being installed.
+       * The trigger's document glyph, from the shared icon set at the trigger's size.
        * @returns {object} element.
        */
       function detailsIcon() {
-        return h(
-          'svg',
-          {
-            className: 'td-triggerIcon',
-            viewBox: '0 0 16 16',
-            width: 15,
-            height: 15,
-            'aria-hidden': true,
-            focusable: false,
-          },
-          h('path', {
-            d: 'M4 1.75h5.1L12.5 5v9.25a.75.75 0 0 1-.75.75h-7.5A.75.75 0 0 1 3.5 14.25V2.5a.75.75 0 0 1 .75-.75Z',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: 1.3,
-            strokeLinejoin: 'round',
-          }),
-          h('path', {
-            d: 'M9 1.9v3.2h3.3',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: 1.3,
-            strokeLinejoin: 'round',
-          }),
-          h('path', {
-            d: 'M5.6 8h4.8M5.6 10.4h4.8M5.6 12.6h3',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: 1.3,
-            strokeLinecap: 'round',
-          }),
-        )
+        return buildIcon(h, 'doc', 'td-triggerIcon', 15)
       }
 
       /**
@@ -2575,12 +3277,12 @@ window.__ModuleLoader__.load({
             (typeof owner?.sessionId === 'string' ? owner.sessionId : undefined) ??
             (typeof currentSessionId === 'function' ? currentSessionId() : undefined)
           if (typeof sessionId !== 'string' || sessionId === '') {
-            setProblem('no session')
+            setProblem(t(PROBLEM_COPY['no session']))
             return
           }
           const turn = turnFromProps ?? turnFromPosition() ?? (typeof latestTurn === 'function' ? latestTurn() : undefined)
           if (typeof turn !== 'number' || !Number.isFinite(turn)) {
-            setProblem('no turn')
+            setProblem(t(PROBLEM_COPY['no turn']))
             return
           }
           setProblem('')
@@ -2690,6 +3392,83 @@ window.__ModuleLoader__.load({
           setPreview({ phase, t: translator, x: box.left, y: box.bottom })
         }, [])
         const hidePreview = React.useCallback(() => setPreview(null), [])
+        // Copy feedback is panel state, not row state: one row at a time says
+        // "copied", and the flag is forgotten after 1.5s so the row returns to its
+        // quiet look instead of permanently announcing an old action.
+        const [copiedPath, setCopiedPath] = React.useState('')
+        const copyTimer = React.useRef(0)
+        React.useEffect(() => () => window.clearTimeout(copyTimer.current), [])
+        const copyPath = React.useCallback((path) => {
+          const done = () => {
+            setCopiedPath(path)
+            window.clearTimeout(copyTimer.current)
+            copyTimer.current = window.setTimeout(() => setCopiedPath(''), 1500)
+          }
+          const fallback = () => {
+            // `navigator.clipboard` is unavailable in some insecure contexts and
+            // older embedded webviews. A hidden textarea keeps the action working
+            // there instead of silently doing nothing.
+            try {
+              const field = document.createElement('textarea')
+              field.value = path
+              field.setAttribute('readonly', '')
+              field.style.position = 'fixed'
+              field.style.opacity = '0'
+              document.body.appendChild(field)
+              field.select()
+              const ok = document.execCommand('copy')
+              document.body.removeChild(field)
+              if (ok) done()
+            } catch {
+              /* the row simply stays quiet when copying is refused */
+            }
+          }
+          if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(path).then(done, fallback)
+          } else {
+            fallback()
+          }
+        }, [])
+        // Sections the reader collapsed, persisted like the width so a reopen keeps
+        // the same reading state. The set is stored as an array of section ids.
+        const [collapsed, setCollapsed] = React.useState(() => readCollapsedSections())
+        const collapsedRef = React.useRef(collapsed)
+        collapsedRef.current = collapsed
+        React.useEffect(() => subscribeCollapsed(setCollapsed), [])
+        const toggleSection = React.useCallback((id) => {
+          const next = toggleCollapsed(collapsedRef.current, id)
+          setCollapsed(next)
+          writeCollapsedSections(next)
+        }, [])
+        // One control collapses the whole report when at least one block is open,
+        // and opens every block when all are already closed.
+        const toggleAllSections = React.useCallback(() => {
+          const next = collapsedRef.current.length >= SECTION_IDS.length ? [] : SECTION_IDS.slice()
+          setCollapsed(next)
+          writeCollapsedSections(next)
+        }, [])
+        const allCollapsed = collapsed.length >= SECTION_IDS.length
+        // Sections open with an animation-fresh mount; a "flash" highlight draws the
+        // eye to the block a metric chip jumped to, then fades through CSS.
+        const [flashSection, setFlashSection] = React.useState('')
+        const flashTimer = React.useRef(0)
+        React.useEffect(() => () => window.clearTimeout(flashTimer.current), [])
+        const jumpToSection = React.useCallback((id) => {
+          // Jumping to a collapsed section would scroll to a heading with no
+          // content, so the target is expanded as part of the jump.
+          const next = collapsedRef.current.filter((entry) => entry !== id)
+          if (next.length !== collapsedRef.current.length) {
+            setCollapsed(next)
+            writeCollapsedSections(next)
+          }
+          setFlashSection(id)
+          window.clearTimeout(flashTimer.current)
+          flashTimer.current = window.setTimeout(() => setFlashSection(''), 1600)
+          // Expanding needs a paint before the section has a box to scroll to; a
+          // zero-delay scroll after the state update lands on the opened content.
+          const schedule = typeof window?.setTimeout === 'function' ? window.setTimeout : setTimeout
+          schedule(() => scrollToSection(id), 0)
+        }, [])
         const dragStart = React.useRef({ x: 0, width })
 
         React.useEffect(() => {
@@ -2726,6 +3505,9 @@ window.__ModuleLoader__.load({
                 : entryCount === 0
                   ? [t('emptyJournal')]
                   : [t('turnNotLoaded', { turn: String(turn) }), t('turnNotLoadedHint')]
+          // While the journal is being fetched a skeleton holds the panel's shape;
+          // every other state is a real message, because a skeleton that never
+          // resolves would look like a hang instead of an explanation.
           return h(
             'div',
             { className: 'td-split' },
@@ -2733,11 +3515,28 @@ window.__ModuleLoader__.load({
             h(
               'div',
               { className: 'td-scroll' },
-              lines2
-                .filter(Boolean)
-                .map((line, index) =>
-                  h('div', { className: index === 0 ? 'td-loading' : 'td-debug', key: index }, line),
-                ),
+              origin === 'fetching'
+                ? h(
+                    'div',
+                    { className: 'td-skeleton', 'aria-hidden': true, 'data-testid': 'td-skeleton' },
+                    [0, 1, 2, 3].map((index) => h('div', { className: 'td-skeletonRow', key: index })),
+                    h('div', { className: 'td-loading' }, t('loading')),
+                  )
+                : h(
+                    'div',
+                    { className: 'td-loadMessage' },
+                    lines2
+                      .filter(Boolean)
+                      .map((line, index) => h('div', { className: 'td-loading', key: index }, line)),
+                    origin === 'host-failed'
+                      ? h(
+                          'button',
+                          { type: 'button', className: 'td-retry', onClick: journal.retry },
+                          buildIcon(h, 'refresh', 'td-retryGlyph', 13),
+                          t('error.retry'),
+                        )
+                      : null,
+                  ),
             ),
           )
         }
@@ -2824,21 +3623,67 @@ window.__ModuleLoader__.load({
         const statusLabel = t(statusKey) === statusKey ? task.status : t(statusKey)
         const statusTone = task.status === 'completed' ? 'ok' : task.status === 'running' ? 'run' : 'warn'
 
-        const section = (id, title, ...children) =>
-          h(
+        /**
+         * One titled section, collapsible.
+         *
+         * Sections take any number of content fragments, so a block can append extra
+         * rows (Host-side memory or Session logs, for example) after its main list
+         * without nesting another box. The title is a toggle button: collapsing is
+         * per reader and persists across tabs, and the chevron + `aria-expanded`
+         * state make the affordance discoverable without a separate control.
+         *
+         * @param {string} id section id.
+         * @param {string} title section title.
+         * @param {number | undefined} count optional count badge for the heading.
+         * @param {...object} children content fragments; falsy entries are skipped.
+         * @returns {object} element.
+         */
+        const section = (id, title, count, ...children) => {
+          const isCollapsed = collapsed.includes(id)
+          const body = children.filter((child) => child !== null && child !== undefined && child !== false)
+          return h(
             'section',
-            { className: 'td-section', 'data-section': id, key: id },
-            h('div', { className: 'td-sectionHead' }, h('div', { className: 'td-sectionTitle' }, title)),
-            children.filter((child) => child !== null && child !== undefined && child !== false),
+            {
+              className:
+                'td-section' + (isCollapsed ? ' td-section--collapsed' : '') + (flashSection === id ? ' td-section--flash' : ''),
+              'data-section': id,
+              key: id,
+            },
+            h(
+              'div',
+              { className: 'td-sectionHead' },
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'td-sectionToggle',
+                  'aria-expanded': !isCollapsed,
+                  title: t('panel.toggle'),
+                  onClick: () => toggleSection(id),
+                },
+                h('span', { className: 'td-sectionChevron', 'aria-hidden': true }, '\u25B8'),
+                h('span', { className: 'td-sectionTitle' }, title),
+                typeof count === 'number' && count > 0
+                  ? h('span', { className: 'td-sectionCount', 'aria-label': t('section.count', { count }) }, String(count))
+                  : null,
+              ),
+            ),
+            body.length === 0 || isCollapsed ? null : h('div', { className: 'td-sectionBody' }, body),
           )
+        }
         const fileList = (files) =>
           files.length === 0
             ? null
             : h(
                 'div',
                 { className: 'td-files' },
-                files.map((file) => fileRow(withMetadata(file), sessionId, t, openResource)),
+                files.map((file) =>
+                  fileRow({ file: withMetadata(file), sessionId, t, openResource, copied: copiedPath, onCopy: copyPath }),
+                ),
               )
+        // The skill verdict feeds the 可复用 section; it is derived once per render.
+        const verdict = React.useMemo(() => reuseVerdict(task), [task])
+        const verdictLabel = t(verdict.reusable ? 'reusable.yes' : 'reusable.no')
 
         return h(
           'div',
@@ -2885,9 +3730,15 @@ window.__ModuleLoader__.load({
             h(
               'div',
               { className: 'td-toolbarTitle' },
+              h('span', { className: 'td-toolbarIcon' }, buildIcon(h, 'doc', 'td-toolbarIconGlyph', 15)),
               h('span', { className: 'td-toolbarHeading' }, t('panel.heading')),
               h('span', { className: 'td-toolbarSub' }, t('panel.subtitle', { turn: task.turn })),
-              h('span', { className: 'td-pill td-pill--' + task.status }, statusLabel),
+              h(
+                'span',
+                { className: 'td-pill td-pill--' + task.status },
+                h('span', { className: 'td-pillDot', 'aria-hidden': true }),
+                statusLabel,
+              ),
             ),
             h(
               'div',
@@ -2898,6 +3749,38 @@ window.__ModuleLoader__.load({
               task.models?.length > 0
                 ? h('code', { className: 'td-toolbarModel' }, task.models[0].provider + '/' + task.models[0].model)
                 : null,
+              h(
+                'div',
+                { className: 'td-toolbarActions' },
+                // Collapse/expand every section in one click. The glyph flips for the
+                // collapsed state, so the button always names what it will do next.
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'td-iconButton td-toolbarButton' + (allCollapsed ? ' td-toolbarButton--active' : ''),
+                    title: t(allCollapsed ? 'panel.expandAll' : 'panel.collapseAll'),
+                    'aria-label': t(allCollapsed ? 'panel.expandAll' : 'panel.collapseAll'),
+                    'aria-pressed': allCollapsed,
+                    onClick: toggleAllSections,
+                  },
+                  buildIcon(h, 'expand', allCollapsed ? 'td-toolbarGlyph td-toolbarGlyph--flipped' : 'td-toolbarGlyph', 14),
+                ),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className:
+                      'td-iconButton td-toolbarButton' +
+                      (metadata.state === 'loading' ? ' td-toolbarButton--busy' : '') +
+                      (metadata.state === 'error' ? ' td-toolbarButton--error' : ''),
+                    title: t(metadata.state === 'error' ? 'error.retry' : 'panel.refresh'),
+                    'aria-label': t(metadata.state === 'error' ? 'error.retry' : 'panel.refresh'),
+                    onClick: metadata.refresh,
+                  },
+                  buildIcon(h, 'refresh', 'td-toolbarGlyph', 14),
+                ),
+              ),
             ),
           ),
           h(
@@ -2909,9 +3792,18 @@ window.__ModuleLoader__.load({
             // rather than left as an empty box with a margin.
             (() => {
               const cells = [
-                metric(t('metrics.steps'), task.steps.length > 0 ? String(task.steps.length) : ''),
-                metric(t('metrics.calls'), task.calls.length > 0 ? String(task.calls.length) : ''),
-                metric(t('metrics.files'), task.files.length > 0 ? String(task.files.length) : ''),
+                metric(t('metrics.steps'), task.steps.length > 0 ? String(task.steps.length) : '', {
+                  target: 'flow',
+                  title: t('metrics.jumpTo', { section: t('section.flow') }),
+                }, jumpToSection),
+                metric(t('metrics.calls'), task.calls.length > 0 ? String(task.calls.length) : '', {
+                  target: 'tools',
+                  title: t('metrics.jumpTo', { section: t('section.tools') }),
+                }, jumpToSection),
+                metric(t('metrics.files'), task.files.length > 0 ? String(task.files.length) : '', {
+                  target: 'outputs',
+                  title: t('metrics.jumpTo', { section: t('section.outputs') }),
+                }, jumpToSection),
               ].filter((cell) => cell !== null)
               return cells.length === 0 ? null : h('div', { className: 'td-metrics' }, cells)
             })(),
@@ -2922,6 +3814,7 @@ window.__ModuleLoader__.load({
               section(
                 'overview',
                 t('overview.title'),
+                usage === undefined ? undefined : 1,
                 h(
                   'dl',
                   { className: 'td-facts td-facts--wide' },
@@ -2936,13 +3829,49 @@ window.__ModuleLoader__.load({
                   usage === undefined
                     ? fact(t('overview.model'), t('usage.missing'), 'muted')
                     : fact(t('usage.model'), (usage.provider ?? '\u2014') + ' / ' + (usage.model ?? '\u2014')),
-                  hitRate === undefined ? null : fact(t('usage.cacheHitRate'), (hitRate * 100).toFixed(1) + '%'),
-                  uncachedInput === undefined ? null : fact(t('usage.uncachedInput'), formatCount(uncachedInput)),
-                  cacheReadTokens === undefined ? null : fact(t('usage.cacheRead'), formatCount(cacheReadTokens)),
-                  cacheWriteTokens === undefined ? null : fact(t('usage.cacheWrite'), formatCount(cacheWriteTokens)),
-                  outputTokens === undefined ? null : fact(t('usage.output'), formatCount(outputTokens)),
-                  reasoningTokens === undefined ? null : fact(t('usage.reasoning'), formatCount(reasoningTokens)),
-                  totalTokens === undefined ? null : fact(t('usage.total'), formatCount(totalTokens)),
+                  hitRate === undefined
+                    ? null
+                    : fact(t('usage.cacheHitRate'), (hitRate * 100).toFixed(1) + '%', undefined, h(
+                        'span',
+                        {
+                          className: 'td-cacheBar',
+                          role: 'img',
+                          // The figure is the reading; the bar restates it in shape.
+                          // A full bar cannot distinguish 99.6% from 100%, so the
+                          // miss is drawn in a second colour rather than left as
+                          // empty track: on a mostly-cached turn the interesting
+                          // number is what was NOT cached.
+                          'aria-label': t('usage.cacheHitRate') + ' ' + (hitRate * 100).toFixed(1) + '%',
+                          title: (hitRate * 100).toFixed(1) + '%',
+                        },
+                        h('span', {
+                          className: 'td-cacheBarFill',
+                          style: { width: Math.max(0.5, Math.min(100, hitRate * 100)) + '%' },
+                        }),
+                        hitRate < 1
+                          ? h('span', {
+                              className: 'td-cacheBarMiss',
+                              style: { width: Math.max(1.5, 100 - hitRate * 100) + '%' },
+                            })
+                          : null,
+                      )),
+                  // Token counts sit left-aligned, each with a bar for its share of
+                  // the total — the comparison a reader actually makes here.
+                  ...tokenFacts(
+                    t,
+                    [
+                      // The prompt: what the provider processed fresh against what it
+                      // read back from cache.
+                      [t('usage.uncachedInput'), uncachedInput, 'warn', 'prompt'],
+                      [t('usage.cacheRead'), cacheReadTokens, 'ok', 'prompt'],
+                      [t('usage.cacheWrite'), cacheWriteTokens, 'muted', 'prompt'],
+                      // What came out, measured against the generated side.
+                      [t('usage.output'), outputTokens, 'run', 'generated'],
+                      [t('usage.reasoning'), reasoningTokens, 'muted', 'generated'],
+                      [t('usage.total'), totalTokens],
+                    ],
+                    t('usage.shareOfTotal'),
+                  ),
                   usage?.cost === undefined ? null : fact(t('metrics.cost'), formatCost(usage.cost)),
                 ),
               ),
@@ -2950,6 +3879,7 @@ window.__ModuleLoader__.load({
               section(
                 'inputs',
                 t('section.inputs'),
+                task.sections.input.length + attachments.length,
                 task.sections.input.length === 0 && attachments.length === 0
                   ? empty(t('empty.inputs'))
                   : null,
@@ -2966,6 +3896,7 @@ window.__ModuleLoader__.load({
               section(
                 'intermediate',
                 t('section.intermediate'),
+                task.sections.intermediate.length + metadata.memory.length + metadata.artifacts.length,
                 task.sections.intermediate.length === 0 && metadata.memory.length === 0 && metadata.artifacts.length === 0
                   ? empty(t('empty.intermediate'))
                   : null,
@@ -2993,6 +3924,7 @@ window.__ModuleLoader__.load({
               section(
                 'outputs',
                 t('section.outputs'),
+                task.sections.output.length,
                 task.sections.output.length === 0 ? empty(t('empty.outputs')) : null,
                 fileList(task.sections.output),
                 outcome.length === 0
@@ -3046,6 +3978,7 @@ window.__ModuleLoader__.load({
               section(
                 'tools',
                 t('section.tools'),
+                task.tools.reduce((sum, tool) => sum + tool.count, 0) + task.skills.reduce((sum, skill) => sum + skill.count, 0),
                 task.tools.length === 0 && task.skills.length === 0
                   ? empty(t('empty.tools'))
                   : h(
@@ -3069,7 +4002,12 @@ window.__ModuleLoader__.load({
                         h(
                           'div',
                           { className: 'td-tableRow td-tableRow--skill', key: 'skill-' + skill.name },
-                          h('span', { className: 'td-tableName' }, 'skill \u00B7 ' + skill.name),
+                          h(
+                            'span',
+                            { className: 'td-tableName' },
+                            buildIcon(h, 'skill', 'td-skillicon', 12),
+                            h('span', null, 'skill \u00B7 ' + skill.name),
+                          ),
                           h('span', { className: 'td-tableCount' }, t('tools.calls', { count: skill.count })),
                         ),
                       ),
@@ -3079,6 +4017,7 @@ window.__ModuleLoader__.load({
               section(
                 'language',
                 t('section.language'),
+                summary.languages.length + summary.shells.length + (summary.commandRuns > 0 ? 1 : 0),
                 summary.languages.length === 0 && summary.shells.length === 0 && summary.commandRuns === 0
                   ? empty(t('empty.language'))
                   : h(
@@ -3101,10 +4040,37 @@ window.__ModuleLoader__.load({
                           ),
                     ),
               ),
-              // 7. The shape of the work, one compact row.
+              // 7. Whether the work is worth turning into a local skill or tool,
+              // derived from deliveries, skill use, and script artifacts.
+              section(
+                'reusable',
+                t('section.reusable'),
+                verdict.reasons.length,
+                h(
+                  'div',
+                  { className: 'td-verdict' + (verdict.reusable ? ' td-verdict--yes' : ' td-verdict--no') },
+                  buildIcon(h, verdict.reusable ? 'skill' : 'doc', 'td-verdictIcon', 13),
+                  h('span', { className: 'td-verdictLabel' }, verdictLabel),
+                ),
+                verdict.reusable
+                  ? h(
+                      'ul',
+                      { className: 'td-verdictReasons' },
+                      verdict.reasons.map((reason, index) =>
+                        h(
+                          'li',
+                          { key: 'reason-' + index },
+                          t(reason.key, { names: reason.params?.names ?? '' }),
+                        ),
+                      ),
+                    )
+                  : null,
+              ),
+              // 8. The shape of the work, one compact row.
               section(
                 'flow',
                 t('section.flow'),
+                phases.reduce((sum, phase) => sum + phase.calls.length, 0),
                 phases.length === 0
                   ? empty(t('flow.empty'))
                   : h(

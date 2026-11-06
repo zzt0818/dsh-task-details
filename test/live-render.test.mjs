@@ -49,7 +49,7 @@ function text(node) {
 // The newest task, which is what the footer belongs to.
 const turnNumbers = entries.map((entry) => entry.event).filter((e) => e.type === 'turn/start').map((e) => e.data.turn)
 const turn = Math.max(...turnNumbers)
-console.log(`rendering session ${SESSION.slice(0, 20)}¡­ task ${turn} (${entries.length} events)`)
+console.log(`rendering session ${SESSION.slice(0, 20)}ï¿½ï¿½ task ${turn} (${entries.length} events)`)
 
 let view
 let error
@@ -68,7 +68,7 @@ const check = (label, condition, detail = '') => {
 check('view renders without throwing', error === undefined, error ? String(error) : '')
 const sections = collect(view ?? null, (n) => n.props?.className === 'td-section')
 console.log('sections rendered:', sections.length)
-check('sections rendered', sections.length === 7, String(sections.length))
+check('sections rendered', sections.length === 8, String(sections.length))
 check('panel is not the loading placeholder', !text(view).includes(zh.loading) || sections.length > 0)
 
 const phases = collect(view ?? null, (n) => typeof n.props?.className === 'string' && n.props.className.startsWith('td-phase '))

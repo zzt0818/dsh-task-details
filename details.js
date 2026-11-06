@@ -3,6 +3,7 @@
  * for. Layout turns compact cards into full detail tables as the panel grows.
  */
 import { buildTaskModel, foldTurns, summarizeCall, summarizeOutcome, summarizePhases } from './analyzer.js'
+import { buildIcon, iconKindForFile } from './icons.js'
 import {
   DETAILS_ROUTE,
   JOURNAL_ROUTE,
@@ -12,6 +13,7 @@ import {
   fileAddress,
   formatBytes,
   formatCount,
+  formatCurrency,
   formatDuration,
   formatTime,
   languageSummary,
@@ -25,6 +27,77 @@ import { DETAILS_PREFERENCE_KEY, readWidth, subscribeWidth, writeWidth } from '.
 let React
 /** @type {Function} */
 let h
+
+/** Copy keys for a footer click that cannot resolve its task. */
+const PROBLEM_COPY = {
+  'no session': 'problem.noSession',
+  'no turn': 'problem.noTurn',
+}
+
+/** Storage key for the per-reader collapsed-section set. */
+const SECTIONS_PREFERENCE_KEY = DETAILS_PREFERENCE_KEY + '.sections'
+
+/** Sections open by default; collapsing is opt-in per block. */
+const DEFAULT_OPEN_SECTIONS = null
+
+/** Every collapsible section id, in render order, for bulk toggling. */
+const SECTION_IDS = ['overview', 'inputs', 'intermediate', 'outputs', 'tools', 'language', 'reusable', 'flow']
+
+/**
+ * Read the persisted collapsed-section ids.
+ * @returns {string[]} ids.
+ */
+function readCollapsedSections() {
+  try {
+    const raw = window.localStorage.getItem(SECTIONS_PREFERENCE_KEY)
+    if (raw === null) return DEFAULT_OPEN_SECTIONS ?? []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Persist the collapsed-section ids.
+ * @param {string[]} ids collapsed ids.
+ */
+function writeCollapsedSections(ids) {
+  try {
+    window.localStorage.setItem(SECTIONS_PREFERENCE_KEY, JSON.stringify(ids))
+  } catch {
+    /* storage is optional; a blocked write only costs persistence */
+  }
+}
+
+/**
+ * Toggle one section in the collapsed set.
+ * @param {string[]} collapsed current ids.
+ * @param {string} id section id.
+ * @returns {string[]} next ids.
+ */
+function toggleCollapsed(collapsed, id) {
+  return collapsed.includes(id) ? collapsed.filter((entry) => entry !== id) : [...collapsed, id]
+}
+
+/**
+ * Subscribe to collapsed-section changes from other tabs.
+ * @param {(ids: string[]) => void} listener reader.
+ * @returns {() => void} unsubscribe.
+ */
+function subscribeCollapsed(listener) {
+  const handler = (event) => {
+    if (event.key !== SECTIONS_PREFERENCE_KEY || event.newValue === null) return
+    try {
+      const parsed = JSON.parse(event.newValue)
+      if (Array.isArray(parsed)) listener(parsed.filter((id) => typeof id === 'string'))
+    } catch {
+      /* ignore malformed cross-tab values */
+    }
+  }
+  window.addEventListener('storage', handler)
+  return () => window.removeEventListener('storage', handler)
+}
 
 /**
  * One Host journal request per Session, shared by every task tab.
@@ -78,7 +151,7 @@ function estimateCost(usage, price) {
   let known = false
   for (const bucket of ['input', 'output', 'cacheRead', 'cacheWrite']) {
     const rate = price[bucket]
-    const tokens = usage[bucket]
+    const tokens = usageBucket(usage, bucket)
     if (typeof rate !== 'number' || typeof tokens !== 'number' || tokens === 0) continue
     known = true
     cost += (tokens / 1_000_000) * rate
@@ -103,9 +176,11 @@ function journalSnapshot(source) {
  * Fetch one Session's journal through the shared cache.
  *
  * @param {string} sessionId Session id.
+ * @param {boolean} [force] drop a cached success and fetch again.
  * @returns {Promise<object[]>} durable events in ascending seq order.
  */
-function loadJournal(sessionId) {
+function loadJournal(sessionId, force = false) {
+  if (force) journalRequests.delete(sessionId)
   const pending = journalRequests.get(sessionId)
   if (pending !== undefined) return pending
   const request = fetch(`${JOURNAL_ROUTE}?sessionId=${encodeURIComponent(sessionId)}`, {
@@ -144,6 +219,11 @@ function useJournal(session, sessionId) {
   // Seeded from the binding so the first paint already has content when the
   // Session is loaded; a Session this tab never opened starts as 'fetching'.
   const [state, setState] = React.useState(seed)
+  // A retry after a Host failure must bypass the shared request cache and
+  // re-run the effect; the failed request already deleted its cache entry, so
+  // only the tick is needed.
+  const [retryTick, setRetryTick] = React.useState(0)
+  const retry = React.useCallback(() => setRetryTick((value) => value + 1), [])
 
   React.useEffect(() => {
     if (typeof sessionId !== 'string') return undefined
@@ -152,6 +232,9 @@ function useJournal(session, sessionId) {
       if (!alive) return
       setState({ owner: sessionId, entries, origin, error })
     }
+    // A retry renders the skeleton again instead of leaving the error text
+    // frozen on screen while the new request is in flight.
+    if (retryTick > 0) setState({ owner: sessionId, entries: [], origin: 'fetching', error: undefined })
 
     // Show the binding immediately when it carries events.
     const live = source?.getSnapshot?.()?.entries ?? []
@@ -165,7 +248,7 @@ function useJournal(session, sessionId) {
 
     // Also fetch the persisted journal: it is the only source for a Session
     // that is not rendered in this tab, and a fast fallback otherwise.
-    loadJournal(sessionId)
+    loadJournal(sessionId, retryTick > 0)
       .then((events) => {
         if (!alive) return
         setState((previous) =>
@@ -187,10 +270,10 @@ function useJournal(session, sessionId) {
       alive = false
       unsubscribe?.()
     }
-  }, [sessionId, source])
+  }, [sessionId, source, retryTick])
 
   // A render for a different Session never shows the previous one's entries.
-  return state.owner === sessionId ? state : { owner: sessionId, entries: [], origin: 'fetching', error: undefined }
+  return state.owner === sessionId ? { ...state, retry } : { owner: sessionId, entries: [], origin: 'fetching', error: undefined, retry }
 }
 /**
  * Load Host file metadata for a task's paths, refreshing while mounted.
@@ -213,6 +296,10 @@ function useMetadata(model, sessionId, override) {
   )
   const paths = model === null ? '' : model.files.map((file) => file.path).join('\n')
   const active = model !== null && override === undefined
+  // Bumping this re-runs the loader for a manual refresh or a retry after an
+  // error. React re-runs the effect, which also resets the polling interval.
+  const [refreshTick, setRefreshTick] = React.useState(0)
+  const refresh = React.useCallback(() => setRefreshTick((value) => value + 1), [])
   // The home directory is needed to make attachment rows clickable, and it is
   // reported even for an empty path list. Asking once, as soon as the panel
   // opens, means the very first paint can already open an attachment instead
@@ -263,8 +350,10 @@ function useMetadata(model, sessionId, override) {
       controller.abort()
       window.clearInterval(timer)
     }
-  }, [paths, sessionId, active])
-  return { ...state, home: home ?? state.home }
+  }, [paths, sessionId, active, refreshTick])
+  // `busy` is only true for the first load or an explicit refresh: the quiet
+  // 30s polling keeps showing the last good data instead of flashing a state.
+  return { ...state, home: home ?? state.home, refresh }
 }
 
 /**
@@ -276,29 +365,53 @@ function usePanelWidth() {
   return [width, React.useCallback((next) => writeWidth(DETAILS_PREFERENCE_KEY, next), [])]
 }
 
-/** One metric cell. */
-function metric(label, value) {
+/**
+ * One metric cell.
+ *
+ * When a target section is given the cell becomes a button that scrolls to
+ * that section, so a number on top answers "what is behind it" in one click.
+ *
+ * @param {string} label headline.
+ * @param {string | undefined} value formatted count; empty hides the cell.
+ * @param {{ target?: string, title?: string } | undefined} options link extras.
+ * @returns {object | null} element.
+ */
+function metric(label, value, options, onJump) {
   if (value === '' || value === undefined || value === null) return null
+  if (options?.target === undefined) {
+    return h(
+      'div',
+      { className: 'td-metric', key: `m-${label}` },
+      h('div', { className: 'td-metricLabel' }, label),
+      h('div', { className: 'td-metricValue' }, value),
+    )
+  }
   return h(
-    'div',
-    { className: 'td-metric', key: `m-${label}` },
+    'button',
+    {
+      type: 'button',
+      className: 'td-metric td-metric--link',
+      key: `m-${label}`,
+      title: options.title ?? label,
+      onClick: () => (onJump ?? scrollToSection)(options.target),
+    },
     h('div', { className: 'td-metricLabel' }, label),
     h('div', { className: 'td-metricValue' }, value),
   )
 }
 
 /**
- * One titled section.
- *
- * Sections take any number of content fragments, so a block can append extra
- * rows (Host-side memory or Session logs, for example) after its main list
- * without nesting another box.
- *
+ * Scroll one named section into view. A no-op guard keeps the call safe in
+ * environments without a document; the smooth behaviour is CSS-driven, so a
+ * reader with reduced motion never sees the panel scroll itself fly.
  * @param {string} id section id.
- * @param {string} title section title.
- * @param {...object} children content fragments; falsy entries are skipped.
- * @returns {object} element.
  */
+function scrollToSection(id) {
+  if (typeof document === 'undefined') return
+  const node = document.querySelector(`[data-section="${id}"]`)
+  node?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })
+}
+
 /**
  * One label/value row in the overview.
  *
@@ -306,24 +419,106 @@ function metric(label, value) {
  * it: fixed-width cards forced a timestamp and a model name into ellipses,
  * which told the reader nothing.
  *
+ * An optional extra element rides at the end of the same row, so a value can
+ * carry a small visual (a bar, a unit) without breaking the list into a stray
+ * unlabelled line — that stray line was what made the overview read unevenly.
+ *
  * @param {string} label row label.
  * @param {string} value row value.
  * @param {string} [tone] optional emphasis: "ok", "run", or "warn".
+ * @param {object} [extra] element rendered after the value in the same row.
  * @returns {object | null} element.
  */
-function fact(label, value, tone) {
+function fact(label, value, tone, extra) {
   if (value === '' || value === undefined) return null
+  // Only counts that a reader compares with their neighbours are pushed to the
+  // right edge. An identifier such as a task number, a timestamp, a percentage
+  // beside its own bar, or a duration (each one reads on its own) is not a
+  // column of magnitudes: right-aligning those flung them away from the label.
+  const text = String(value)
+  const comparable = /^\$[\d.,]+$/.test(text) || /^<\$[\d.]+$/.test(text)
   return h(
     'div',
-    { className: 'td-fact', key: 'fact-' + label },
+    { className: 'td-fact' + (comparable ? ' td-fact--numeric' : ''), key: 'fact-' + label },
     h('dt', { className: 'td-factKey' }, label),
-    h('dd', { className: 'td-factValue' + (tone === undefined ? '' : ' td-factValue--' + tone) }, value),
+    h(
+      'dd',
+      { className: 'td-factValue' + (tone === undefined ? '' : ' td-factValue--' + tone) },
+      // A toned value is a state word: the dot carries the colour and the text
+      // stays in the ordinary label colour, so the row does not look like a
+      // link. Every other value is plain text.
+      tone === undefined
+        ? h('span', { className: 'td-factText' }, value)
+        : [
+            h('span', { className: 'td-statusDot td-statusDot--' + tone, 'aria-hidden': true, key: 'dot' }),
+            h('span', { className: 'td-factText', key: 'text' }, value),
+          ],
+      extra ?? null,
+    ),
   )
 }
 
 /** The empty state of a section. */
 function empty(text) {
   return h('div', { className: 'td-empty' }, text)
+}
+
+/**
+ * Token counts as a readable block.
+ *
+ * Two ways to make a column comparable: one shared unit, or one shared shape.
+ * Sharing the unit looks tidier until the numbers differ by an order of
+ * magnitude — 7232 and 5766 both collapse to `0.01M`, so two different figures
+ * become indistinguishable. Each row therefore keeps the unit that suits its
+ * own size and sits beside a bar sized as its share of the prompt it belongs to.
+ *
+ * Shares are measured against the prompt total (fresh input + cache read), not
+ * against the grand total: a cached turn is often 300x its uncached part, and
+ * against a grand total both sides round to a sliver while the interesting
+ * comparison — how much of the prompt was reused — disappears into the track.
+ * Output and reasoning measure against the tokens generated.
+ *
+ * The row that is the whole carries no bar, because a full bar beside "total"
+ * says nothing.
+ *
+ * @param {Function} t translator.
+ * @param {[string, number | undefined, string?, string?][]} entries label / value / tone / `page` (which block the row belongs to).
+ * @param {string} barLabel accessible name of the bars.
+ * @returns {object[]} fact rows; rows without a value are dropped.
+ */
+function tokenFacts(t, entries, barLabel) {
+  const present = entries.filter(([, value]) => typeof value === 'number' && Number.isFinite(value))
+  // A row with no page is a total: it measures the whole and wears no bar.
+  const pages = new Map()
+  for (const [, value, , page] of present) {
+    if (page === undefined) continue
+    pages.set(page, (pages.get(page) ?? 0) + value)
+  }
+  return present
+    .map(([label, value, tone, page]) => {
+      const base = page === undefined ? undefined : pages.get(page)
+      const share = base > 0 ? Math.min(100, (value / base) * 100) : undefined
+      const bar =
+        share === undefined
+          ? undefined
+          : h(
+              'span',
+              { className: 'td-shareBar', role: 'img', 'aria-label': barLabel + ' ' + share.toFixed(1) + '%', title: share.toFixed(1) + '%' },
+              h('span', {
+                className: 'td-shareBarFill td-shareBarFill--' + (tone ?? 'muted'),
+                // Shares are drawn as the square root of the true ratio. At a
+                // 99.7% hit rate the honest linear split is a 1px sliver, which
+                // reads as "nothing there" and hides the very thing a reader
+                // looks for — that some prompt was processed fresh. The rooted
+                // scale keeps the order and the contrast while giving every
+                // non-zero share a width the eye can find; the exact percentage
+                // stays in the tooltip and the accessible name.
+                style: { width: (value === 0 ? 0 : Math.max(2, Math.sqrt(share / 100) * 100)) + '%' },
+              }),
+            )
+      return fact(label, formatCount(value), undefined, bar)
+    })
+    .filter(Boolean)
 }
 
 /**
@@ -363,24 +558,30 @@ function kv(t, labelKey, value) {
 
 /**
  * One file row; the detail table inside it appears once the panel is wide.
+ *
+ * Copy feedback is owned by the panel (`copiedPath`), not the row: the test
+ * harness renders trees without executing function components, and one shared
+ * state also means at most one row claims "copied" at a time.
+ *
+ * @param {object} input row inputs.
+ * @returns {object} element.
  */
-function fileRow(file, sessionId, t, openResource) {
+function fileRow({ file, sessionId, t, openResource, copied, onCopy }) {
   const address = fileAddress(sessionId, file.path)
+  const copyCurrent = () => onCopy(file.path)
   const status = file.exists === true ? 'ok' : file.exists === false ? 'missing' : 'unknown'
   const roleLabel = t(
     file.role === 'read' ? 'file.role.read' : file.role === 'deliver' ? 'file.role.deliver' : 'file.role.write',
   )
+  const isCopied = copied === file.path
+  const glyph = iconKindForFile(file)
   return h(
     'div',
     { className: 'td-fileRow', key: file.path, title: file.path },
     h(
       'div',
       { className: 'td-fileHead' },
-      h(
-        'span',
-        { className: `td-fileIcon ${status}`, 'aria-hidden': true },
-        file.kind === 'directory' ? '\u25A6' : '\u25A4',
-      ),
+      buildIcon(h, glyph, `td-fileIcon ${status}`, 12),
       h(
         'button',
         {
@@ -398,14 +599,12 @@ function fileRow(file, sessionId, t, openResource) {
         'button',
         {
           type: 'button',
-          className: 'td-iconButton',
-          title: t('file.reveal'),
-          'aria-label': t('file.reveal'),
-          onClick: () => {
-            navigator.clipboard?.writeText(file.path).catch(() => {})
-          },
+          className: isCopied ? 'td-iconButton td-iconButton--copied' : 'td-iconButton',
+          title: t(isCopied ? 'file.copied' : 'file.reveal'),
+          'aria-label': t(isCopied ? 'file.copied' : 'file.reveal'),
+          onClick: copyCurrent,
         },
-        '\u29C9',
+        isCopied ? '\u2713' : '\u29C9',
       ),
     ),
     h('div', { className: 'td-filePath' }, prettyPath(directoryOf(file.path))),
@@ -435,43 +634,11 @@ function fileRow(file, sessionId, t, openResource) {
 }
 
 /**
- * A small document glyph drawn as SVG, so the control keeps its icon in any
- * theme and never depends on an emoji font being installed.
+ * The trigger's document glyph, from the shared icon set at the trigger's size.
  * @returns {object} element.
  */
 function detailsIcon() {
-  return h(
-    'svg',
-    {
-      className: 'td-triggerIcon',
-      viewBox: '0 0 16 16',
-      width: 15,
-      height: 15,
-      'aria-hidden': true,
-      focusable: false,
-    },
-    h('path', {
-      d: 'M4 1.75h5.1L12.5 5v9.25a.75.75 0 0 1-.75.75h-7.5A.75.75 0 0 1 3.5 14.25V2.5a.75.75 0 0 1 .75-.75Z',
-      fill: 'none',
-      stroke: 'currentColor',
-      strokeWidth: 1.3,
-      strokeLinejoin: 'round',
-    }),
-    h('path', {
-      d: 'M9 1.9v3.2h3.3',
-      fill: 'none',
-      stroke: 'currentColor',
-      strokeWidth: 1.3,
-      strokeLinejoin: 'round',
-    }),
-    h('path', {
-      d: 'M5.6 8h4.8M5.6 10.4h4.8M5.6 12.6h3',
-      fill: 'none',
-      stroke: 'currentColor',
-      strokeWidth: 1.3,
-      strokeLinecap: 'round',
-    }),
-  )
+  return buildIcon(h, 'doc', 'td-triggerIcon', 15)
 }
 
 /**
@@ -520,12 +687,12 @@ export function TaskDetailsTrigger({ turn: turnProp, node, t, currentSessionId, 
       (typeof owner?.sessionId === 'string' ? owner.sessionId : undefined) ??
       (typeof currentSessionId === 'function' ? currentSessionId() : undefined)
     if (typeof sessionId !== 'string' || sessionId === '') {
-      setProblem('no session')
+      setProblem(t(PROBLEM_COPY['no session']))
       return
     }
     const turn = turnFromProps ?? turnFromPosition() ?? (typeof latestTurn === 'function' ? latestTurn() : undefined)
     if (typeof turn !== 'number' || !Number.isFinite(turn)) {
-      setProblem('no turn')
+      setProblem(t(PROBLEM_COPY['no turn']))
       return
     }
     setProblem('')
@@ -635,6 +802,83 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
     setPreview({ phase, t: translator, x: box.left, y: box.bottom })
   }, [])
   const hidePreview = React.useCallback(() => setPreview(null), [])
+  // Copy feedback is panel state, not row state: one row at a time says
+  // "copied", and the flag is forgotten after 1.5s so the row returns to its
+  // quiet look instead of permanently announcing an old action.
+  const [copiedPath, setCopiedPath] = React.useState('')
+  const copyTimer = React.useRef(0)
+  React.useEffect(() => () => window.clearTimeout(copyTimer.current), [])
+  const copyPath = React.useCallback((path) => {
+    const done = () => {
+      setCopiedPath(path)
+      window.clearTimeout(copyTimer.current)
+      copyTimer.current = window.setTimeout(() => setCopiedPath(''), 1500)
+    }
+    const fallback = () => {
+      // `navigator.clipboard` is unavailable in some insecure contexts and
+      // older embedded webviews. A hidden textarea keeps the action working
+      // there instead of silently doing nothing.
+      try {
+        const field = document.createElement('textarea')
+        field.value = path
+        field.setAttribute('readonly', '')
+        field.style.position = 'fixed'
+        field.style.opacity = '0'
+        document.body.appendChild(field)
+        field.select()
+        const ok = document.execCommand('copy')
+        document.body.removeChild(field)
+        if (ok) done()
+      } catch {
+        /* the row simply stays quiet when copying is refused */
+      }
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(path).then(done, fallback)
+    } else {
+      fallback()
+    }
+  }, [])
+  // Sections the reader collapsed, persisted like the width so a reopen keeps
+  // the same reading state. The set is stored as an array of section ids.
+  const [collapsed, setCollapsed] = React.useState(() => readCollapsedSections())
+  const collapsedRef = React.useRef(collapsed)
+  collapsedRef.current = collapsed
+  React.useEffect(() => subscribeCollapsed(setCollapsed), [])
+  const toggleSection = React.useCallback((id) => {
+    const next = toggleCollapsed(collapsedRef.current, id)
+    setCollapsed(next)
+    writeCollapsedSections(next)
+  }, [])
+  // One control collapses the whole report when at least one block is open,
+  // and opens every block when all are already closed.
+  const toggleAllSections = React.useCallback(() => {
+    const next = collapsedRef.current.length >= SECTION_IDS.length ? [] : SECTION_IDS.slice()
+    setCollapsed(next)
+    writeCollapsedSections(next)
+  }, [])
+  const allCollapsed = collapsed.length >= SECTION_IDS.length
+  // Sections open with an animation-fresh mount; a "flash" highlight draws the
+  // eye to the block a metric chip jumped to, then fades through CSS.
+  const [flashSection, setFlashSection] = React.useState('')
+  const flashTimer = React.useRef(0)
+  React.useEffect(() => () => window.clearTimeout(flashTimer.current), [])
+  const jumpToSection = React.useCallback((id) => {
+    // Jumping to a collapsed section would scroll to a heading with no
+    // content, so the target is expanded as part of the jump.
+    const next = collapsedRef.current.filter((entry) => entry !== id)
+    if (next.length !== collapsedRef.current.length) {
+      setCollapsed(next)
+      writeCollapsedSections(next)
+    }
+    setFlashSection(id)
+    window.clearTimeout(flashTimer.current)
+    flashTimer.current = window.setTimeout(() => setFlashSection(''), 1600)
+    // Expanding needs a paint before the section has a box to scroll to; a
+    // zero-delay scroll after the state update lands on the opened content.
+    const schedule = typeof window?.setTimeout === 'function' ? window.setTimeout : setTimeout
+    schedule(() => scrollToSection(id), 0)
+  }, [])
   const dragStart = React.useRef({ x: 0, width })
 
   React.useEffect(() => {
@@ -671,6 +915,9 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
           : entryCount === 0
             ? [t('emptyJournal')]
             : [t('turnNotLoaded', { turn: String(turn) }), t('turnNotLoadedHint')]
+    // While the journal is being fetched a skeleton holds the panel's shape;
+    // every other state is a real message, because a skeleton that never
+    // resolves would look like a hang instead of an explanation.
     return h(
       'div',
       { className: 'td-split' },
@@ -678,11 +925,28 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
       h(
         'div',
         { className: 'td-scroll' },
-        lines2
-          .filter(Boolean)
-          .map((line, index) =>
-            h('div', { className: index === 0 ? 'td-loading' : 'td-debug', key: index }, line),
-          ),
+        origin === 'fetching'
+          ? h(
+              'div',
+              { className: 'td-skeleton', 'aria-hidden': true, 'data-testid': 'td-skeleton' },
+              [0, 1, 2, 3].map((index) => h('div', { className: 'td-skeletonRow', key: index })),
+              h('div', { className: 'td-loading' }, t('loading')),
+            )
+          : h(
+              'div',
+              { className: 'td-loadMessage' },
+              lines2
+                .filter(Boolean)
+                .map((line, index) => h('div', { className: 'td-loading', key: index }, line)),
+              origin === 'host-failed'
+                ? h(
+                    'button',
+                    { type: 'button', className: 'td-retry', onClick: journal.retry },
+                    buildIcon(h, 'refresh', 'td-retryGlyph', 13),
+                    t('error.retry'),
+                  )
+                : null,
+            ),
       ),
     )
   }
@@ -769,21 +1033,67 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
   const statusLabel = t(statusKey) === statusKey ? task.status : t(statusKey)
   const statusTone = task.status === 'completed' ? 'ok' : task.status === 'running' ? 'run' : 'warn'
 
-  const section = (id, title, ...children) =>
-    h(
+  /**
+   * One titled section, collapsible.
+   *
+   * Sections take any number of content fragments, so a block can append extra
+   * rows (Host-side memory or Session logs, for example) after its main list
+   * without nesting another box. The title is a toggle button: collapsing is
+   * per reader and persists across tabs, and the chevron + `aria-expanded`
+   * state make the affordance discoverable without a separate control.
+   *
+   * @param {string} id section id.
+   * @param {string} title section title.
+   * @param {number | undefined} count optional count badge for the heading.
+   * @param {...object} children content fragments; falsy entries are skipped.
+   * @returns {object} element.
+   */
+  const section = (id, title, count, ...children) => {
+    const isCollapsed = collapsed.includes(id)
+    const body = children.filter((child) => child !== null && child !== undefined && child !== false)
+    return h(
       'section',
-      { className: 'td-section', 'data-section': id, key: id },
-      h('div', { className: 'td-sectionHead' }, h('div', { className: 'td-sectionTitle' }, title)),
-      children.filter((child) => child !== null && child !== undefined && child !== false),
+      {
+        className:
+          'td-section' + (isCollapsed ? ' td-section--collapsed' : '') + (flashSection === id ? ' td-section--flash' : ''),
+        'data-section': id,
+        key: id,
+      },
+      h(
+        'div',
+        { className: 'td-sectionHead' },
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'td-sectionToggle',
+            'aria-expanded': !isCollapsed,
+            title: t('panel.toggle'),
+            onClick: () => toggleSection(id),
+          },
+          h('span', { className: 'td-sectionChevron', 'aria-hidden': true }, '\u25B8'),
+          h('span', { className: 'td-sectionTitle' }, title),
+          typeof count === 'number' && count > 0
+            ? h('span', { className: 'td-sectionCount', 'aria-label': t('section.count', { count }) }, String(count))
+            : null,
+        ),
+      ),
+      body.length === 0 || isCollapsed ? null : h('div', { className: 'td-sectionBody' }, body),
     )
+  }
   const fileList = (files) =>
     files.length === 0
       ? null
       : h(
           'div',
           { className: 'td-files' },
-          files.map((file) => fileRow(withMetadata(file), sessionId, t, openResource)),
+          files.map((file) =>
+            fileRow({ file: withMetadata(file), sessionId, t, openResource, copied: copiedPath, onCopy: copyPath }),
+          ),
         )
+  // The skill verdict feeds the 可复用 section; it is derived once per render.
+  const verdict = React.useMemo(() => reuseVerdict(task), [task])
+  const verdictLabel = t(verdict.reusable ? 'reusable.yes' : 'reusable.no')
 
   return h(
     'div',
@@ -830,9 +1140,15 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
       h(
         'div',
         { className: 'td-toolbarTitle' },
+        h('span', { className: 'td-toolbarIcon' }, buildIcon(h, 'doc', 'td-toolbarIconGlyph', 15)),
         h('span', { className: 'td-toolbarHeading' }, t('panel.heading')),
         h('span', { className: 'td-toolbarSub' }, t('panel.subtitle', { turn: task.turn })),
-        h('span', { className: 'td-pill td-pill--' + task.status }, statusLabel),
+        h(
+          'span',
+          { className: 'td-pill td-pill--' + task.status },
+          h('span', { className: 'td-pillDot', 'aria-hidden': true }),
+          statusLabel,
+        ),
       ),
       h(
         'div',
@@ -843,6 +1159,38 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
         task.models?.length > 0
           ? h('code', { className: 'td-toolbarModel' }, task.models[0].provider + '/' + task.models[0].model)
           : null,
+        h(
+          'div',
+          { className: 'td-toolbarActions' },
+          // Collapse/expand every section in one click. The glyph flips for the
+          // collapsed state, so the button always names what it will do next.
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'td-iconButton td-toolbarButton' + (allCollapsed ? ' td-toolbarButton--active' : ''),
+              title: t(allCollapsed ? 'panel.expandAll' : 'panel.collapseAll'),
+              'aria-label': t(allCollapsed ? 'panel.expandAll' : 'panel.collapseAll'),
+              'aria-pressed': allCollapsed,
+              onClick: toggleAllSections,
+            },
+            buildIcon(h, 'expand', allCollapsed ? 'td-toolbarGlyph td-toolbarGlyph--flipped' : 'td-toolbarGlyph', 14),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className:
+                'td-iconButton td-toolbarButton' +
+                (metadata.state === 'loading' ? ' td-toolbarButton--busy' : '') +
+                (metadata.state === 'error' ? ' td-toolbarButton--error' : ''),
+              title: t(metadata.state === 'error' ? 'error.retry' : 'panel.refresh'),
+              'aria-label': t(metadata.state === 'error' ? 'error.retry' : 'panel.refresh'),
+              onClick: metadata.refresh,
+            },
+            buildIcon(h, 'refresh', 'td-toolbarGlyph', 14),
+          ),
+        ),
       ),
     ),
     h(
@@ -854,9 +1202,18 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
       // rather than left as an empty box with a margin.
       (() => {
         const cells = [
-          metric(t('metrics.steps'), task.steps.length > 0 ? String(task.steps.length) : ''),
-          metric(t('metrics.calls'), task.calls.length > 0 ? String(task.calls.length) : ''),
-          metric(t('metrics.files'), task.files.length > 0 ? String(task.files.length) : ''),
+          metric(t('metrics.steps'), task.steps.length > 0 ? String(task.steps.length) : '', {
+            target: 'flow',
+            title: t('metrics.jumpTo', { section: t('section.flow') }),
+          }, jumpToSection),
+          metric(t('metrics.calls'), task.calls.length > 0 ? String(task.calls.length) : '', {
+            target: 'tools',
+            title: t('metrics.jumpTo', { section: t('section.tools') }),
+          }, jumpToSection),
+          metric(t('metrics.files'), task.files.length > 0 ? String(task.files.length) : '', {
+            target: 'outputs',
+            title: t('metrics.jumpTo', { section: t('section.outputs') }),
+          }, jumpToSection),
         ].filter((cell) => cell !== null)
         return cells.length === 0 ? null : h('div', { className: 'td-metrics' }, cells)
       })(),
@@ -867,6 +1224,7 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
         section(
           'overview',
           t('overview.title'),
+          usage === undefined ? undefined : 1,
           h(
             'dl',
             { className: 'td-facts td-facts--wide' },
@@ -881,13 +1239,49 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
             usage === undefined
               ? fact(t('overview.model'), t('usage.missing'), 'muted')
               : fact(t('usage.model'), (usage.provider ?? '\u2014') + ' / ' + (usage.model ?? '\u2014')),
-            hitRate === undefined ? null : fact(t('usage.cacheHitRate'), (hitRate * 100).toFixed(1) + '%'),
-            uncachedInput === undefined ? null : fact(t('usage.uncachedInput'), formatCount(uncachedInput)),
-            cacheReadTokens === undefined ? null : fact(t('usage.cacheRead'), formatCount(cacheReadTokens)),
-            cacheWriteTokens === undefined ? null : fact(t('usage.cacheWrite'), formatCount(cacheWriteTokens)),
-            outputTokens === undefined ? null : fact(t('usage.output'), formatCount(outputTokens)),
-            reasoningTokens === undefined ? null : fact(t('usage.reasoning'), formatCount(reasoningTokens)),
-            totalTokens === undefined ? null : fact(t('usage.total'), formatCount(totalTokens)),
+            hitRate === undefined
+              ? null
+              : fact(t('usage.cacheHitRate'), (hitRate * 100).toFixed(1) + '%', undefined, h(
+                  'span',
+                  {
+                    className: 'td-cacheBar',
+                    role: 'img',
+                    // The figure is the reading; the bar restates it in shape.
+                    // A full bar cannot distinguish 99.6% from 100%, so the
+                    // miss is drawn in a second colour rather than left as
+                    // empty track: on a mostly-cached turn the interesting
+                    // number is what was NOT cached.
+                    'aria-label': t('usage.cacheHitRate') + ' ' + (hitRate * 100).toFixed(1) + '%',
+                    title: (hitRate * 100).toFixed(1) + '%',
+                  },
+                  h('span', {
+                    className: 'td-cacheBarFill',
+                    style: { width: Math.max(0.5, Math.min(100, hitRate * 100)) + '%' },
+                  }),
+                  hitRate < 1
+                    ? h('span', {
+                        className: 'td-cacheBarMiss',
+                        style: { width: Math.max(1.5, 100 - hitRate * 100) + '%' },
+                      })
+                    : null,
+                )),
+            // Token counts sit left-aligned, each with a bar for its share of
+            // the total — the comparison a reader actually makes here.
+            ...tokenFacts(
+              t,
+              [
+                // The prompt: what the provider processed fresh against what it
+                // read back from cache.
+                [t('usage.uncachedInput'), uncachedInput, 'warn', 'prompt'],
+                [t('usage.cacheRead'), cacheReadTokens, 'ok', 'prompt'],
+                [t('usage.cacheWrite'), cacheWriteTokens, 'muted', 'prompt'],
+                // What came out, measured against the generated side.
+                [t('usage.output'), outputTokens, 'run', 'generated'],
+                [t('usage.reasoning'), reasoningTokens, 'muted', 'generated'],
+                [t('usage.total'), totalTokens],
+              ],
+              t('usage.shareOfTotal'),
+            ),
             usage?.cost === undefined ? null : fact(t('metrics.cost'), formatCost(usage.cost)),
           ),
         ),
@@ -895,6 +1289,7 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
         section(
           'inputs',
           t('section.inputs'),
+          task.sections.input.length + attachments.length,
           task.sections.input.length === 0 && attachments.length === 0
             ? empty(t('empty.inputs'))
             : null,
@@ -911,6 +1306,7 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
         section(
           'intermediate',
           t('section.intermediate'),
+          task.sections.intermediate.length + metadata.memory.length + metadata.artifacts.length,
           task.sections.intermediate.length === 0 && metadata.memory.length === 0 && metadata.artifacts.length === 0
             ? empty(t('empty.intermediate'))
             : null,
@@ -938,6 +1334,7 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
         section(
           'outputs',
           t('section.outputs'),
+          task.sections.output.length,
           task.sections.output.length === 0 ? empty(t('empty.outputs')) : null,
           fileList(task.sections.output),
           outcome.length === 0
@@ -991,6 +1388,7 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
         section(
           'tools',
           t('section.tools'),
+          task.tools.reduce((sum, tool) => sum + tool.count, 0) + task.skills.reduce((sum, skill) => sum + skill.count, 0),
           task.tools.length === 0 && task.skills.length === 0
             ? empty(t('empty.tools'))
             : h(
@@ -1014,7 +1412,12 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
                   h(
                     'div',
                     { className: 'td-tableRow td-tableRow--skill', key: 'skill-' + skill.name },
-                    h('span', { className: 'td-tableName' }, 'skill \u00B7 ' + skill.name),
+                    h(
+                      'span',
+                      { className: 'td-tableName' },
+                      buildIcon(h, 'skill', 'td-skillicon', 12),
+                      h('span', null, 'skill \u00B7 ' + skill.name),
+                    ),
                     h('span', { className: 'td-tableCount' }, t('tools.calls', { count: skill.count })),
                   ),
                 ),
@@ -1024,6 +1427,7 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
         section(
           'language',
           t('section.language'),
+          summary.languages.length + summary.shells.length + (summary.commandRuns > 0 ? 1 : 0),
           summary.languages.length === 0 && summary.shells.length === 0 && summary.commandRuns === 0
             ? empty(t('empty.language'))
             : h(
@@ -1046,10 +1450,37 @@ export function TaskDetailsView({ sessionId, turn, session, price, t, openResour
                     ),
               ),
         ),
-        // 7. The shape of the work, one compact row.
+        // 7. Whether the work is worth turning into a local skill or tool,
+        // derived from deliveries, skill use, and script artifacts.
+        section(
+          'reusable',
+          t('section.reusable'),
+          verdict.reasons.length,
+          h(
+            'div',
+            { className: 'td-verdict' + (verdict.reusable ? ' td-verdict--yes' : ' td-verdict--no') },
+            buildIcon(h, verdict.reusable ? 'skill' : 'doc', 'td-verdictIcon', 13),
+            h('span', { className: 'td-verdictLabel' }, verdictLabel),
+          ),
+          verdict.reusable
+            ? h(
+                'ul',
+                { className: 'td-verdictReasons' },
+                verdict.reasons.map((reason, index) =>
+                  h(
+                    'li',
+                    { key: 'reason-' + index },
+                    t(reason.key, { names: reason.params?.names ?? '' }),
+                  ),
+                ),
+              )
+            : null,
+        ),
+        // 8. The shape of the work, one compact row.
         section(
           'flow',
           t('section.flow'),
+          phases.reduce((sum, phase) => sum + phase.calls.length, 0),
           phases.length === 0
             ? empty(t('flow.empty'))
             : h(

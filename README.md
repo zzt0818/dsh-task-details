@@ -53,6 +53,7 @@ node test/host.test.mjs         # Host 聚合：文件存在性/大小/行数
 node test/host-plugin.test.mjs  # Host 路由：405/400/200 与 dispose
 node test/bundle.test.mjs       # 浏览器端：模块加载器格式、槽位注册
 node test/render.test.mjs       # 渲染：跑通完整面板树
+node test/interactions.test.mjs # 交互：复制路径、跳转高亮、刷新、徽标、主题兜底
 ```
 
 ## 结构
@@ -66,6 +67,7 @@ node test/render.test.mjs       # 渲染：跑通完整面板树
 | `preference.js` | 面板宽度偏好（跨标签页共享） |
 | `styles.js` | 样式（全部使用宿主 `--dsw-alias-*` 主题变量） |
 | `copy.js` | 中英文案 |
+| `icons.js` | 内联 SVG 图标（文件类型、skill、刷新、展开/折叠等） |
 | `client-entry.js` | 浏览器端注册逻辑（槽位、标签页类型、样式、词典） |
 | `client.js` | **构建产物**，由 `build.mjs` 生成 |
 | `cordis.patch.yml` | bundle patch：插入 Host 插件行 |
@@ -76,7 +78,10 @@ node test/render.test.mjs       # 渲染：跑通完整面板树
 - **数据来源是会话日志**：面板直接读取 `sessions.binding(id).session.eventSource`，与 Chat 折叠无关，所以被折叠掉的工具调用也能看到；重新打开历史任务、断线重连后依然正确。
 - **Host 只补浏览器看不到的信息**：文件是否仍存在、大小、修改时间、行数，以及 `.dsh` 下的记忆与日志位置。
 - **宽度自适应**：默认 460px；≥560px 时文件行展开明细；≥700px 时面板内部变为双栏。宽度写入 `localStorage`，所有详情标签页共享。
-- **跟随主题**：颜色全部取宿主 token，亮/暗模式自动适配。
+- **跟随主题**：颜色全部取宿主 token，亮/暗模式自动适配；对公开 Theme 契约之外的旧别名提供兜底，缺 token 时自动回退到基础色，不会在某些 profile 下变成透明或黑块。
+- **手动刷新与重试**：工具栏的刷新按钮立即重新拉取文件元数据（30 秒静默轮询之外）；读取日志失败时错误页提供「重试」按钮，会绕过缓存重新请求。
+- **区块导航**：每个区块标题带数量徽标，可单独折叠；工具栏一键折叠/展开全部；点击顶部指标卡会滚动到对应区块、自动展开被折叠的目标并短暂高亮。
+- **复制路径**：文件行的复制按钮写入的是文件真实路径（含 `navigator.clipboard` 不可用时的兜底），并带 1.5 秒「已复制」反馈。
 
 ## 已知边界
 

@@ -32,6 +32,16 @@ export const STYLES = String.raw`
   --td-measure: 720px;
   --td-sans: var(--dsw-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif);
+  /* The public Theme contract exposes a small, stable set of tokens. Some
+     profiles do not resolve the wider alias names used below, so each gets a
+     fallback to a guaranteed token. One theme change then repairs every
+     surface that depended on a missing alias. */
+  --td-tertiary: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
+  --td-module: var(--dsw-alias-bg-module-platform, var(--dsw-alias-bg-layer-2));
+  --td-border-l3: var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
+  --td-link: var(--dsw-alias-link, var(--dsw-alias-brand-primary));
+  --td-hover: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-2));
+  --td-business: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary));
 }
 
 /* ---- trigger ------------------------------------------------------------- */
@@ -47,7 +57,7 @@ export const STYLES = String.raw`
   gap: 7px;
   height: 32px;
   padding: 0 12px;
-  border: var(--td-line) solid var(--dsw-alias-border-l3);
+  border: var(--td-line) solid var(--td-border-l3);
   border-radius: var(--td-radius-sm, 7px);
   background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-primary);
@@ -63,7 +73,7 @@ export const STYLES = String.raw`
   transition: background-color .14s ease, color .14s ease, border-color .14s ease;
 }
 .td-trigger:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--td-hover);
   color: var(--dsw-alias-brand-primary);
   border-color: var(--dsw-alias-brand-primary);
 }
@@ -92,7 +102,7 @@ export const STYLES = String.raw`
   width: 12px;
   text-align: center;
   font-size: var(--td-text-3xs);
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
 }
 .td-fileIcon.ok { color: var(--dsw-alias-state-success-primary); }
 .td-fileIcon.missing { color: var(--dsw-alias-state-warn-primary); }
@@ -123,7 +133,7 @@ export const STYLES = String.raw`
   min-width: 0;
 }
 .td-fileName:hover:not(:disabled) {
-  color: var(--dsw-alias-link);
+  color: var(--td-link);
   text-decoration: underline;
 }
 /* A name that cannot be opened must not look like one that can. */
@@ -143,16 +153,16 @@ export const STYLES = String.raw`
   line-height: 16px;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--dsw-alias-bg-module-platform);
-  color: var(--dsw-alias-label-tertiary);
+  background: var(--td-module);
+  color: var(--td-tertiary);
 }
-.td-fileBadge.badge--write { color: var(--dsw-alias-state-business-primary); }
+.td-fileBadge.badge--write { color: var(--td-business); }
 .td-fileBadge.badge--deliver { color: var(--dsw-alias-state-success-primary); }
 .td-fileSize {
   margin-inline-start: auto;
   flex: none;
   font-size: var(--td-text-xs);
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -170,7 +180,7 @@ export const STYLES = String.raw`
   outline: none;
   margin: 0;
   padding: 0 3px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
   font: inherit;
   font-size: 12px;
   line-height: 1;
@@ -195,7 +205,7 @@ export const STYLES = String.raw`
   margin-top: 2px;
   font-family: var(--td-mono);
   font-size: var(--td-text-2xs);
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
   /* The save path is the detail the reader widens the panel for, so it wraps
      onto a second line rather than ending in an ellipsis. */
   white-space: normal;
@@ -209,11 +219,11 @@ export const STYLES = String.raw`
   gap: 4px 0;
   margin-top: 4px;
   font-size: var(--td-text-xs);
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
 }
-.td-fileTools { display: none; margin-top: 3px; font-size: var(--td-text-2xs); color: var(--dsw-alias-label-tertiary); }
+.td-fileTools { display: none; margin-top: 3px; font-size: var(--td-text-2xs); color: var(--td-tertiary); }
 .td-kv { display: inline-flex; gap: 5px; align-items: baseline; }
-.td-kvKey { color: var(--dsw-alias-label-tertiary); }
+.td-kvKey { color: var(--td-tertiary); }
 .td-kvValue { color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; }
 .td-kvValue.warn { color: var(--dsw-alias-state-warn-primary); }
 .td-kv + .td-kv::before {
@@ -243,7 +253,7 @@ export const STYLES = String.raw`
   flex: none;
   font-size: 16px;
   line-height: 1;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
 }
 .td-triggerProblem {
   font-size: 12px;
@@ -324,14 +334,25 @@ export const STYLES = String.raw`
   font-weight: 600;
   letter-spacing: .01em;
 }
+.td-toolbarIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--td-module);
+  color: var(--dsw-alias-brand-primary);
+}
 .td-toolbarSub { font-size: var(--td-text-sm); color: var(--dsw-alias-label-secondary); }
 .td-toolbarMeta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin-inline-start: auto;
   font-size: var(--td-text-xs);
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
   font-variant-numeric: tabular-nums;
 }
 .td-toolbarModel {
@@ -339,8 +360,36 @@ export const STYLES = String.raw`
   font-size: var(--td-text-xs);
   padding: 2px 7px;
   border-radius: 999px;
-  background: var(--dsw-alias-bg-module-platform);
+  background: var(--td-module);
   color: var(--dsw-alias-label-secondary);
+}
+
+/* ---- toolbar actions: collapse-all and refresh --------------------------- */
+.td-toolbarActions { display: inline-flex; align-items: center; gap: 2px; }
+.td-toolbarButton {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  /* Unlike the row copy control these are permanent chrome: always visible,
+     never hidden until hover. */
+  opacity: 1;
+  color: var(--td-tertiary);
+  transition: background-color .14s ease, color .14s ease;
+}
+.td-toolbarButton:hover { background: var(--td-hover); color: var(--dsw-alias-label-primary); }
+.td-toolbarButton:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px;
+}
+.td-toolbarButton--active { color: var(--dsw-alias-brand-primary); }
+.td-toolbarButton--error { color: var(--dsw-alias-state-warn-primary); }
+.td-toolbarGlyph { display: block; }
+.td-toolbarGlyph--flipped { transform: rotate(180deg); }
+.td-toolbarButton--busy .td-toolbarGlyph { animation: td-spin 1s linear infinite; }
+@keyframes td-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .td-toolbarButton--busy .td-toolbarGlyph { animation: none; }
 }
 
 .td-scroll {
@@ -352,7 +401,7 @@ export const STYLES = String.raw`
   scrollbar-width: thin;
   /* The token this used to name does not exist in the host's theme, so the
      rule silently did nothing. These are the two the shipped panels use. */
-  scrollbar-color: var(--dsw-alias-border-l3) transparent;
+  scrollbar-color: var(--td-border-l3) transparent;
 }
 
 /* ---- metrics: one compact strip ----------------------------------------- */
@@ -376,7 +425,7 @@ export const STYLES = String.raw`
 }
 .td-metricLabel {
   font-size: var(--td-text-xs);
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
   white-space: nowrap;
 }
 .td-metricValue {
@@ -421,8 +470,17 @@ export const STYLES = String.raw`
 }
 .td-empty {
   font-size: var(--td-text-sm);
-  color: var(--dsw-alias-label-tertiary);
-  padding: 1px 0;
+  color: var(--td-tertiary);
+  padding: 2px 0 2px 16px;
+  position: relative;
+}
+/* A quiet dash before "None" reads as an intentional empty state instead of
+   a line that forgot to render, especially beside dense sections. */
+.td-empty::before {
+  content: '\2014';
+  position: absolute;
+  left: 0;
+  color: var(--td-border-l3);
 }
 
 /* ---- quiet chips: languages, attachments, tool names --------------------- */
@@ -442,7 +500,7 @@ export const STYLES = String.raw`
   max-width: 100%;
   padding: 1px 8px;
   border-radius: 999px;
-  background: var(--dsw-alias-bg-module-platform);
+  background: var(--td-module);
   color: var(--dsw-alias-label-secondary);
   font-size: var(--td-text-xs);
   line-height: 18px;
@@ -450,7 +508,7 @@ export const STYLES = String.raw`
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.td-chip--muted { background: none; color: var(--dsw-alias-label-tertiary); padding-inline: 2px; }
+.td-chip--muted { background: none; color: var(--td-tertiary); padding-inline: 2px; }
 
 /* ---- outcome notes under the deliverables -------------------------------- */
 .td-outcome {
@@ -480,7 +538,7 @@ export const STYLES = String.raw`
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--dsw-alias-label-tertiary);
+  background: var(--td-tertiary);
 }
 .td-outcomeItem--delivered::before { background: var(--dsw-alias-state-success-primary); }
 .td-outcomeItem--failed::before { background: var(--dsw-alias-state-warn-primary); }
@@ -531,7 +589,7 @@ export const STYLES = String.raw`
 }
 .td-tableRow--skill .td-tableName { color: var(--dsw-alias-brand-primary); }
 .td-tableCount { font-size: var(--td-text-xs); color: var(--dsw-alias-label-secondary); }
-.td-tableDim { font-size: var(--td-text-xs); color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+.td-tableDim { font-size: var(--td-text-xs); color: var(--td-tertiary); font-variant-numeric: tabular-nums; }
 .td-tableWarn { font-size: var(--td-text-xs); color: var(--dsw-alias-state-warn-primary); }
 /* A long tool or skill name wraps inside its own row instead of pushing the
    counts off the edge. */
@@ -559,20 +617,47 @@ export const STYLES = String.raw`
   flex: none;
   width: 72px;
   font-size: var(--td-text-xs);
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
 }
 .td-factValue {
   margin: 0;
   min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: var(--td-text-sm);
   color: var(--dsw-alias-label-primary);
+  /* Figures are compared down a column, so they are tabular and share one
+     right edge inside their own cell without dragging the label along. */
+  font-variant-numeric: tabular-nums;
   /* A long value wraps onto its own lines instead of ending in an ellipsis. */
   overflow-wrap: anywhere;
 }
-.td-factValue--ok { color: var(--dsw-alias-state-success-primary); font-weight: 600; }
-.td-factValue--run { color: var(--dsw-alias-brand-primary); font-weight: 600; }
-.td-factValue--warn { color: var(--dsw-alias-state-warn-primary); font-weight: 600; }
-.td-factValue--muted { color: var(--dsw-alias-label-tertiary); }
+/* A number sits at the right edge of its column; prose (a model name, a path)
+   stays left, because right-aligned words read ragged. */
+.td-fact--numeric .td-factValue { justify-content: flex-end; }
+.td-fact--numeric .td-factText { font-variant-numeric: tabular-nums; }
+/* A status is a word, not a link: a dot carries the colour and the text keeps
+   the ordinary label colour, so the row does not read as clickable. */
+.td-factValue--ok, .td-factValue--run, .td-factValue--warn { font-weight: 600; }
+.td-factValue--ok { color: var(--dsw-alias-label-primary); }
+.td-factValue--run { color: var(--dsw-alias-label-primary); }
+.td-factValue--warn { color: var(--dsw-alias-label-primary); }
+.td-statusDot {
+  flex: none;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: currentColor;
+}
+.td-statusDot--ok { background: var(--dsw-alias-state-success-primary); }
+.td-statusDot--run { background: var(--dsw-alias-brand-primary); }
+.td-statusDot--warn { background: var(--dsw-alias-state-warn-primary); }
+.td-factValue--muted { color: var(--td-tertiary); }
 .td-fact code {
   font-family: var(--td-mono);
   font-size: var(--td-text-xs);
@@ -620,7 +705,7 @@ export const STYLES = String.raw`
 .td-phase + .td-phase::before {
   content: '\203A';
   margin-inline-end: 2px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
   font-size: var(--td-text-xs);
 }
 .td-phaseDot {
@@ -631,7 +716,7 @@ export const STYLES = String.raw`
   background: var(--dsw-alias-brand-primary);
 }
 .td-phase--deliver .td-phaseDot { background: var(--dsw-alias-state-success-primary); }
-.td-phase--run .td-phaseDot { background: var(--dsw-alias-state-business-primary); }
+.td-phase--run .td-phaseDot { background: var(--td-business); }
 .td-phase--warn .td-phaseDot { background: var(--dsw-alias-state-warn-primary); }
 .td-phaseLabel { white-space: nowrap; }
 .td-phaseSample {
@@ -652,8 +737,8 @@ export const STYLES = String.raw`
   text-align: center;
   padding: 0 3px;
   border-radius: 999px;
-  background: var(--dsw-alias-bg-module-platform);
-  color: var(--dsw-alias-label-tertiary);
+  background: var(--td-module);
+  color: var(--td-tertiary);
   font-variant-numeric: tabular-nums;
 }
 /* A failure count sits on the chip it belongs to, so the reader can point at
@@ -677,7 +762,7 @@ export const STYLES = String.raw`
   align-items: center;
   font-size: var(--td-text-3xs);
   line-height: 20px;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--td-tertiary);
   white-space: nowrap;
 }
 .td-phaseEnd--start::after,
@@ -686,7 +771,7 @@ export const STYLES = String.raw`
   display: inline-block;
   width: 12px;
   height: 1px;
-  background: var(--dsw-alias-border-l3);
+  background: var(--td-border-l3);
   margin-inline: 3px;
 }
 .td-pill {
@@ -695,24 +780,316 @@ export const STYLES = String.raw`
   line-height: 18px;
   padding: 0 8px;
   border-radius: 999px;
-  background: var(--dsw-alias-bg-module-platform);
+  background: var(--td-module);
   color: var(--dsw-alias-label-secondary);
 }
 .td-pill--completed { color: var(--dsw-alias-state-success-primary); }
 .td-pill--running { color: var(--dsw-alias-brand-primary); }
 .td-pill--error, .td-pill--blocked { color: var(--dsw-alias-state-warn-primary); }
 
-.td-loading { font-size: var(--td-text-sm); color: var(--dsw-alias-label-tertiary); }
-.td-debug {
-  margin-top: 10px;
-  font-family: var(--td-mono);
+.td-loading { font-size: var(--td-text-sm); color: var(--td-tertiary); }
+
+/* ---- error / load message with a retry ------------------------------------ */
+.td-loadMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: var(--td-measure);
+  margin-inline: auto;
+  margin-top: var(--td-pad);
+  padding: 14px 16px;
+  border: var(--td-line) solid var(--td-border-l3);
+  border-radius: var(--td-radius);
+  background: var(--dsw-alias-bg-layer-1);
+}
+.td-retry {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: var(--td-line) solid var(--dsw-alias-brand-primary);
+  border-radius: var(--td-radius-sm);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-brand-primary);
+  font: inherit;
+  font-size: var(--td-text-sm);
+  cursor: pointer;
+}
+.td-retry:hover { background: var(--td-hover); }
+.td-retry:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+.td-retryGlyph { display: block; }
+
+/* ---- loading skeleton ----------------------------------------------------- */
+/* Placeholder bars, not a bare line of text: they hold the panel's shape while
+   the journal loads, so the content does not jump when it arrives. */
+.td-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: var(--td-measure);
+  margin-inline: auto;
+  margin-top: var(--td-gap);
+}
+.td-skeletonRow {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--td-module);
+  animation: td-pulse 1.4s ease-in-out infinite alternate;
+}
+.td-skeletonRow:nth-child(1) { width: 46%; }
+.td-skeletonRow:nth-child(2) { width: 82%; }
+.td-skeletonRow:nth-child(3) { width: 64%; }
+.td-skeletonRow:nth-child(4) { width: 74%; }
+@keyframes td-pulse {
+  from { opacity: 1; }
+  to { opacity: .4; }
+}
+
+/* ---- phase preview (fixed popover) ---------------------------------------- */
+/* Rendered at the document level, so it styles itself completely: no
+   background would leave it unreadable over the panel's own text. */
+.td-preview {
+  position: fixed;
+  z-index: 40;
+  max-width: 340px;
+  padding: 10px 12px;
+  border: var(--td-line) solid var(--td-border-l3);
+  border-radius: var(--td-radius, 10px);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  font-family: var(--td-sans, inherit);
   font-size: var(--td-text-xs);
-  line-height: 1.6;
-  color: var(--dsw-alias-label-tertiary);
-  word-break: break-all;
+  line-height: 1.5;
+  pointer-events: none;
+}
+.td-previewHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.td-previewKind { font-weight: 600; font-size: var(--td-text-sm); }
+.td-previewSteps { color: var(--td-tertiary); font-size: var(--td-text-2xs); }
+.td-previewFail { color: var(--dsw-alias-state-warn-primary); font-size: var(--td-text-2xs); }
+.td-previewTools {
+  font-family: var(--td-mono);
+  font-size: var(--td-text-2xs);
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
+}
+.td-previewList {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow: hidden;
+}
+.td-previewList li {
+  font-family: var(--td-mono);
+  font-size: var(--td-text-2xs);
+  color: var(--td-tertiary);
+  overflow-wrap: anywhere;
+}
+
+/* ---- collapsible sections -------------------------------------------------- */
+.td-sectionToggle {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+  min-width: 0;
+}
+.td-sectionToggle:hover .td-sectionTitle,
+.td-sectionToggle:focus-visible .td-sectionTitle { color: var(--dsw-alias-label-primary); }
+/* A count badge answers "how much is in here" before the block is opened,
+   and stays useful when collapsed so the block is not just a bare heading. */
+.td-sectionCount {
+  flex: none;
+  font-size: var(--td-text-3xs);
+  line-height: 16px;
+  min-width: 17px;
+  padding: 0 5px;
+  text-align: center;
+  border-radius: 999px;
+  background: var(--td-module);
+  color: var(--td-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.td-section--collapsed .td-sectionCount { opacity: .75; }
+.td-sectionToggle:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.td-sectionChevron {
+  flex: none;
+  font-size: var(--td-text-xs);
+  color: var(--td-tertiary);
+  transition: transform .14s ease;
+  /* Open points the chevron down, reading as "expanded". */
+  transform: rotate(90deg);
+  transform-origin: center;
+}
+.td-section--collapsed .td-sectionChevron { transform: rotate(0deg); }
+.td-section--collapsed .td-sectionBody { display: none; }
+.td-section--collapsed { padding-bottom: 9px; }
+
+/* ---- cache hit-rate bar ---------------------------------------------------- */
+/* Rides beside its own percentage instead of occupying a row of its own: an
+   unlabelled full-width row in a label/value list split the list in two and
+   read as a broken entry. Tall enough and dark enough to read as a bar rather
+   than a hairline: at 4px the fill and the track were nearly the same weight
+   in a narrow panel. */
+.td-cacheBar {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  width: 96px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--dsw-alias-border-l2);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l1);
+  overflow: hidden;
+}
+/* Hit and miss are both drawn: on a 99.6% turn the only readable difference is
+   the sliver of uncached prompt, so the miss gets its own colour instead of
+   being indistinguishable from a full bar. */
+.td-cacheBarFill {
+  display: block;
+  height: 100%;
+  background: var(--dsw-alias-brand-primary);
+}
+.td-cacheBarMiss {
+  display: block;
+  height: 100%;
+  background: var(--dsw-alias-state-warn-primary);
+}
+/* The percentage carries the reading; the bar only confirms it at a glance. */
+.td-factValue .td-factText { font-variant-numeric: tabular-nums; }
+.td-cachePct { font-weight: 600; }
+
+/* ---- share bars on token rows ---------------------------------------------- */
+/* Each token row carries the slice of the total it accounts for. The row is the
+   unit of comparison here, so these sit left-aligned right after their number
+   instead of being pushed to a right edge: a share is read against the row
+   above it, not against the panel edge. */
+.td-shareBar {
+  flex: none;
+  display: block;
+  width: 72px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--dsw-alias-border-l2);
+  overflow: hidden;
+}
+.td-shareBarFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--td-tertiary);
+  /* A tiny share still needs to be visible as a mark, not vanish into the track. */
+  min-width: 2px;
+}
+/* The colour says what the slice is: prompt the provider processed fresh,
+   prompt it read from cache, or tokens it generated. */
+.td-shareBarFill--ok { background: var(--dsw-alias-state-success-primary); }
+.td-shareBarFill--warn { background: var(--dsw-alias-state-warn-primary); }
+.td-shareBarFill--run { background: var(--dsw-alias-brand-primary); }
+.td-shareBarFill--muted { background: var(--td-tertiary); }
+
+/* ---- clickable metric chips ----------------------------------------------- */
+.td-metric--link { cursor: pointer; transition: border-color .14s ease; }
+.td-metric--link:hover { border-color: var(--dsw-alias-brand-primary); }
+.td-metric--link:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+/* ---- status dot inside the toolbar pill ----------------------------------- */
+.td-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* The dot inherits the pill's own colour, so one rule covers every status. */
+.td-pillDot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+/* The copy button reveals itself only on pointer hover; on touch there is no
+   hover, so it stays visible there. */
+@media (hover: none) {
+  .td-iconButton { opacity: 1; }
+}
+.td-iconButton--copied { opacity: 1; color: var(--dsw-alias-state-success-primary); }
+
+/* ---- reusable verdict ----------------------------------------------------- */
+/* One quiet line on top, one reason list under it. A "yes" reads in the brand
+   colour because it is the actionable answer; a "no" stays muted. */
+.td-verdict {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--td-text-sm);
+  min-width: 0;
+}
+.td-verdict--yes { color: var(--dsw-alias-label-primary); }
+.td-verdict--yes .td-verdictIcon { color: var(--dsw-alias-brand-primary); }
+.td-verdict--no { color: var(--td-tertiary); }
+.td-verdictIcon { flex: none; display: inline-flex; }
+.td-verdictLabel { overflow-wrap: anywhere; }
+.td-verdictReasons {
+  margin: 6px 0 0;
+  padding: 0 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--td-text-xs);
+  color: var(--dsw-alias-label-secondary);
+}
+.td-verdictReasons li { overflow-wrap: anywhere; }
+
+/* The skill glyph inside the tool table inherits the row's brand colour. */
+.td-skillicon { flex: none; margin-right: 4px; }
+.td-tableRow--skill .td-skillicon { color: var(--dsw-alias-brand-primary); }
+
+/* Jump highlight: a metric click scrolls here and the section pulses once. */
+.td-section--flash {
+  border-color: var(--dsw-alias-brand-primary);
+  animation: td-flash 1.6s ease-out;
+}
+@keyframes td-flash {
+  0% { background: var(--td-module); }
+  100% { background: var(--dsw-alias-bg-layer-1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .td-trigger, .td-handle, .td-triggerChevron { transition: none; }
+  .td-trigger, .td-handle, .td-triggerChevron, .td-sectionChevron, .td-metric--link { transition: none; }
+  .td-skeletonRow { animation: none; opacity: .5; }
+  .td-section--flash { animation: none; }
 }
 `

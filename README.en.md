@@ -55,6 +55,7 @@ npm test         # run the whole suite
 | `preference.js` | Panel width preference, shared across tabs |
 | `styles.js` | Styles, built entirely from the host's `--dsw-alias-*` theme tokens |
 | `copy.js` | Chinese and English strings |
+| `icons.js` | Inline SVG icons (file types, skills, refresh, expand/collapse, etc.) |
 | `client-entry.js` | Browser-side registration: slots, tab type, styles, dictionaries |
 | `client.js` | **Build artifact** produced by `build.mjs` |
 | `cordis.patch.yml` | Bundle patch that inserts the Host plugin row |
@@ -65,7 +66,10 @@ npm test         # run the whole suite
 - **The session journal is the source of truth.** The panel reads `sessions.binding(id).session.eventSource` directly rather than the Chat transcript, so tool calls Chat folds away are still visible, and the panel stays correct after reopening a past task or reconnecting.
 - **The Host half only adds what the browser cannot know**: whether a path still exists, its size, modification time and line count, plus where DSH keeps memory files and session logs under `.dsh`.
 - **The layout responds to width**: 460px by default, file rows expand at ≥560px, and the panel becomes two columns at ≥700px. The width is stored in `localStorage` and shared by every details tab.
-- **Theme-following**: every colour comes from a host token, so light and dark mode both work.
+- **Theme-following**: every colour comes from a host token, so light and dark mode both work. Aliases outside the public Theme contract fall back to a base token, so a missing alias never turns a surface transparent or black.
+- **Manual refresh and retry**: the toolbar refresh button re-reads file metadata immediately (on top of the quiet 30s poll); a journal read failure offers a Retry button that bypasses the cache.
+- **Section navigation**: headings carry count badges and collapse individually; one toolbar control collapses or expands all of them; clicking a top metric scrolls to its section, expands a collapsed target, and flashes it.
+- **Copy path**: the file-row copy button writes the real path (with a fallback when `navigator.clipboard` is unavailable) and shows a brief "Copied" confirmation.
 
 ## Known limits
 

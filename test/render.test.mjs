@@ -84,8 +84,8 @@ const check = (label, condition, detail = '') => {
 }
 
 console.log('sections:', heads.join(' | '))
-check('seven sections render', sections.length === 7, String(sections.length))
-check('every sketch block present', ['任务概况', '输入的文件', '中间产物', '输出的文件/产物', '使用的工具/skill', '使用的语言或其他', '流程'].every((needle) => heads.some((head) => head.includes(needle))), heads.join('|'))
+check('eight sections render', sections.length === 8, String(sections.length))
+check('every sketch block present', ['任务概况', '输入的文件', '中间产物', '输出的文件/产物', '使用的工具/skill', '使用的语言或其他', '可复用', '流程'].every((needle) => heads.some((head) => head.includes(needle))), heads.join('|'))
 
 const phases = collect(view, (n) => typeof n.props?.className === 'string' && n.props.className.startsWith('td-phase '))
 check('flow summarizes the task into phases', phases.length > 0 && phases.length < 6, String(phases.length))
@@ -115,18 +115,91 @@ const factText = collect(view, (node) => typeof node.props?.className === 'strin
 check('overview shows provider/model', factText.includes('deepseek-official'), factText.slice(0, 120))
 check('overview lists usage rows', ['Token','token'].some((w) => text(view).includes(w)))
 check('overview lists token buckets', /输入|input/i.test(text(view)))
+check('estimated cost renders', factText.includes('$'), factText.slice(0, 160))
 
-const topMetrics = collect(view, (n) => n.props?.className === 'td-metric')
+const topMetrics = collect(view, (n) => typeof n.props?.className === 'string' && /(?:^| )td-metric(?:$| )/.test(n.props.className))
 // Duration and tokens are overview rows; repeating them in the strip above
 // printed the same numbers twice on one screen.
 check('top metrics do not repeat the overview', !topMetrics.some((m) => /耗时|Token/.test(text(m))))
 check('top metrics carry the counts', topMetrics.length >= 3, String(topMetrics.length))
+check('metrics jump to their sections', topMetrics.length > 0 && topMetrics.every((m) => m.type === 'button' && typeof m.props.onClick === 'function'), topMetrics.map((m) => String(m.type)).join(','))
 
 const hands = collect(view, (n) => n.props?.role === 'separator')
 check('resize handle present and accessible', hands.length === 1 && hands[0].props.tabIndex === 0 && hands[0].props['aria-valuemin'] === 320)
 
 const cacheBar = collect(view, (n) => n.props?.className === 'td-cacheBarFill')
-check('overview renders facts', collect(view, (n) => n.props?.className === 'td-fact').length >= 4)
+check('cache bar fills with the hit rate', cacheBar.length === 1 && /^\d+(\.\d+)?%$/.test(cacheBar[0].props.style?.width ?? ''), cacheBar[0]?.props.style?.width ?? 'none')
+
+// A 99.6% bar and a 100% bar look identical if the miss is just empty track, so
+// the uncached sliver is drawn in its own colour.
+const missBar = collect(view, (n) => n.props?.className === 'td-cacheBarMiss')
+check('cache bar shows the uncached sliver', missBar.length === 1 && /%$/.test(missBar[0].props.style?.width ?? ''), missBar[0]?.props.style?.width ?? 'none')
+check('the uncached sliver is wide enough to see', parseFloat(missBar[0]?.props.style?.width ?? '0') >= 1.5, missBar[0]?.props.style?.width ?? 'none')
+check('a miss sliver has its own colour', /\.td-cacheBarMiss \{[^}]*background/.test(fs.readFileSync(new URL('../styles.js', import.meta.url), 'utf8')))
+
+// The bar rides inside the 缓存命中率 row: a bar on its own unlabelled row split
+// the label/value list in two and read as a broken entry.
+const isFact = (n) => typeof n.props?.className === 'string' && /(?:^| )td-fact(?: |$)/.test(n.props.className)
+const cacheRows = collect(view, (n) => isFact(n) && collect(n, (c) => c.props?.className === 'td-cacheBar').length === 1)
+check('cache bar shares its value row', cacheRows.length === 1 && text(cacheRows[0]).startsWith('缓存命中率'), cacheRows[0] === undefined ? 'no row' : text(cacheRows[0]).slice(0, 20))
+check('every fact row has a label', collect(view, isFact).every((row) => text(collect(row, (n) => n.props?.className === 'td-factKey')).trim() !== ''))
+
+// A status is a word, not a link: the colour lives in a dot beside it.
+const statusRow = collect(view, (n) => isFact(n) && collect(n, (c) => typeof c.props?.className === 'string' && c.props.className.includes('td-statusDot')).length === 1)
+check('status row carries a state dot', statusRow.length === 1 && text(statusRow[0]).includes('已完成'), String(statusRow.length))
+check('status text is plain, tone lives on the dot', statusRow.length === 1 && collect(statusRow[0], (n) => typeof n.props?.className === 'string' && n.props.className.includes('td-statusDot--ok')).length === 1)
+check('numeric rows are marked for tabular figures', collect(view, (n) => typeof n.props?.className === 'string' && n.props.className.includes('td-fact--numeric')).length >= 1, String(collect(view, (n) => typeof n.props?.className === 'string' && n.props.className.includes('td-fact--numeric')).length))
+
+// Each token row keeps the unit that suits its own size — one shared unit would
+// collapse 7232 and 5766 into the same `0.01M` — and the column stays scannable
+// through tabular digits and a shared right edge.
+check('token rows keep their own unit', /3\.0k/.test(factText) && /10k/.test(factText) && /13k/.test(factText), factText.slice(0, 180))
+check('small counts stay plain', /(^|\| )410( |\|)/.test(factText), factText.slice(0, 180))
+check('a real zero reads as 0', /(^|\| )0( |\|)/.test(factText), factText.slice(0, 180))
+check('numbers are right aligned in their column', /\.td-fact--numeric \.td-factValue \{[^}]*justify-content: flex-end/.test(fs.readFileSync(new URL('../styles.js', import.meta.url), 'utf8')))
+check('numbers use tabular figures', /font-variant-numeric: tabular-nums/.test(fs.readFileSync(new URL('../styles.js', import.meta.url), 'utf8')))
+
+// Every token row shows its slice of the total, so the composition of the
+// prompt is readable at a glance without dividing numbers in your head.
+const shareBars = collect(view, (n) => n.props?.className === 'td-shareBar')
+const shareFills = collect(view, (n) => typeof n.props?.className === 'string' && n.props.className.startsWith('td-shareBarFill'))
+check('token rows carry share bars', shareBars.length >= 3, String(shareBars.length))
+check('share bars are proportional', shareFills.length > 0 && shareFills.every((bar) => /^\d+(\.\d+)?%$/.test(bar.props.style?.width ?? '')))
+// The total is the whole, so a full bar beside it would say nothing.
+const totalRow = collect(view, (n) => isFact(n) && text(collect(n, (c) => c.props?.className === 'td-factKey')).trim() === '总计')
+check('the total row carries no bar', totalRow.length === 1 && collect(totalRow[0], (n) => n.props?.className === 'td-shareBar').length === 0)
+check('share bars are tinted by kind', shareFills.some((bar) => /--(?:ok|warn|run|muted)/.test(bar.props.className)), String(shareFills.length))
+check('the cached share dominates a mostly-cached prompt', shareFills.some((bar) => parseFloat(bar.props.style?.width ?? '0') > 50), shareFills.map((bar) => bar.props.style?.width).join(','))
+check('a tiny share still draws a visible mark', /\.td-shareBarFill \{[^}]*min-width/.test(fs.readFileSync(new URL('../styles.js', import.meta.url), 'utf8')))
+
+// Only comparable magnitudes align right. An identifier, a timestamp, or a
+// percentage that belongs to its own bar stays beside the label.
+const numericRows = collect(view, (n) => typeof n.props?.className === 'string' && n.props.className.includes('td-fact--numeric'))
+const numericLabels = numericRows.map((row) => text(collect(row, (n) => n.props?.className === 'td-factKey')).trim())
+check('the task number is not right aligned', !numericLabels.some((label) => label === '任务'), numericLabels.join(','))
+check('the timestamp is not right aligned', !numericLabels.some((label) => label === '开始时间'), numericLabels.join(','))
+check('the hit rate stays beside its bar', !numericLabels.some((label) => label === '缓存命中率'), numericLabels.join(','))
+check('token counts are left aligned with their label', !numericLabels.some((label) => label.includes('Token') || label.includes('缓存读取') || label.includes('总计')), numericLabels.join(','))
+
+// The reusable section announces its verdict and its reasons.
+const reusable = sections[heads.findIndex((head) => head.includes('可复用'))]
+check('reusable section has a verdict line', reusable !== undefined && text(reusable).includes(zh?.['reusable.yes'] ?? '可复用'), text(reusable).slice(0, 80))
+check('reusable section lists reasons', collect(reusable, (n) => n.type === 'li').length > 0)
+
+// File rows carry type icons drawn as SVG.
+const fileIcons = collect(view, (n) => typeof n.props?.className === 'string' && n.props.className.startsWith('td-fileIcon '))
+check('file rows carry type icons', fileIcons.length >= 4 && fileIcons.every((icon) => icon.type === 'svg'), String(fileIcons.length))
+check('file icons use the 16-unit grid', fileIcons.every((icon) => icon.props.viewBox === '0 0 16 16'))
+
+// Collapsible sections: toggle buttons with aria-expanded.
+const toggles = collect(view, (n) => n.props?.className === 'td-sectionToggle')
+check('section titles are toggles', toggles.length === sections.length && toggles.every((btn) => btn.props['aria-expanded'] === true), String(toggles.length))
+
+const skillIcons = collect(view, (n) => n.props?.className === 'td-skillicon')
+check('skill rows carry the spark icon', skillIcons.length > 0 && skillIcons.every((icon) => icon.type === 'svg'), String(skillIcons.length))
+
+const statusPill = collect(view, (n) => typeof n.props?.className === 'string' && n.props.className.startsWith('td-pill '))
+check('status pill carries a dot', statusPill.some((pill) => collect(pill, (n) => n.props?.className === 'td-pillDot').length === 1))
 
 // The turn that does not exist must not crash; it shows the loading state.
 const missing = TaskDetailsView({ sessionId: SESSION_ID, turn: 42, session, t, openResource: () => {} })
