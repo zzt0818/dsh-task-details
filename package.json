@@ -1,6 +1,6 @@
 {
   "name": "dsh-task-details",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Task details sidebar for DeepSeek Harness: a 'View task details' button under every finished turn opens a resizable right-sidebar panel listing the task's input files, intermediate artifacts, output files, tools and skills used, languages, and model usage.",
   "type": "module",
   "main": "./index.js",
@@ -16,6 +16,7 @@
     "model.js",
     "details.js",
     "client-entry.js",
+    "icons.js",
     "copy.js",
     "styles.js",
     "preference.js",
@@ -42,7 +43,11 @@
   "keywords": [
     "dsh",
     "dsh-plugin",
+    "dsh-plugins",
     "deepseek-harness",
+    "deepseek",
+    "harness",
+    "plugin",
     "task-details",
     "sidebar",
     "usage",
@@ -54,7 +59,8 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "test": "node test/run.mjs"
+    "test": "node test/run.mjs",
+    "prepublishOnly": "node build.mjs && node test/run.mjs"
   },
   "dsh": {
     "bundle": {

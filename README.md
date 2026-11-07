@@ -22,11 +22,23 @@
 
 ## 安装
 
+已发布到 npm，任选一种：
+
+**Harness 插件页（推荐）**：打开「设置 → 插件」，在安装框中输入包名 `dsh-task-details`，一键安装。
+
+**命令行**：
+
 ```sh
 dsh plugin add dsh-task-details
 ```
 
-安装后**重启 DeepSeek Harness 桌面应用**。重新打开任意历史任务，任务底部就会出现「查看任务详情」。
+**指定 profile**（Desktop 默认就是 `desktop`，一般不用加）：
+
+```sh
+dsh plugin --profile desktop add dsh-task-details
+```
+
+安装后刷新页面（必要时重启 DeepSeek Harness 桌面应用）。重新打开任意历史任务，任务底部就会出现「查看任务详情」。
 
 从源码安装（开发时）：
 

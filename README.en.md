@@ -22,11 +22,23 @@ What the panel shows:
 
 ## Install
 
+Published on npm. Either way works:
+
+**Harness plugin page (recommended)**: open Settings → Plugins, type the package name `dsh-task-details` into the install field, and install it in one click.
+
+**Command line**:
+
 ```sh
 dsh plugin add dsh-task-details
 ```
 
-Restart the DeepSeek Harness desktop app afterwards. Reopen any past task and the button appears at the bottom of it.
+**Named profile** (Desktop already defaults to `desktop`, so this is usually unnecessary):
+
+```sh
+dsh plugin --profile desktop add dsh-task-details
+```
+
+Refresh the page after installing (restart the DeepSeek Harness desktop app if needed). Reopen any past task and the button appears at the bottom of it.
 
 From a source checkout:
 
